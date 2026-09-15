@@ -215,7 +215,7 @@ export class SimFallback extends Component<{ children: ReactNode; name?: string 
     if (this.state.hasError) {
       return (
         <div className="clay-inset p-6 text-center">
-          <p className="text-sm font-bold text-destructive">Simulation failed to initialize.</p>
+          <p className="text-sm font-bold text-destructive">Simulation failed to initialize. Resetting simulation…</p>
           <p className="mt-1 text-xs text-muted-foreground">{this.state.msg}</p>
           <button
             onClick={() => this.setState({ hasError: false, msg: "" })}

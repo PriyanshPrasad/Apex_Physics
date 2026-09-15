@@ -1,10 +1,10 @@
 import type { ComponentType } from "react";
 import {
   VectorsSim, KinematicsSim, ProjectileSim, FBDSim, CollisionSim,
-  EnergySim, RotationSim, TorqueSim, SHMSim, CircularSim,
+  EnergySim, RotationSim, TorqueSim, SHMSim, CircularSim, FluidsSim, RollingSim,
 } from "./mechanics";
 import {
-  FluidsSim, GasSim, ChargesSim, MagnetismSim, RCSim, CircuitBuilderSim,
+  GasSim, ChargesSim, MagnetismSim, RCSim, CircuitBuilderSim,
   OpticsSim, WavesSim, DecaySim, PhotoelectricSim, OrbitalSim, CalculusSim,
 } from "./fields";
 
@@ -20,6 +20,7 @@ export const SIMS: Record<string, ComponentType> = {
   shm: SHMSim,
   circular: CircularSim,
   fluids: FluidsSim,
+  rolling: RollingSim,
   gas: GasSim,
   charges: ChargesSim,
   magnetism: MagnetismSim,

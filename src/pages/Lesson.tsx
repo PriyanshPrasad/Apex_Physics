@@ -208,6 +208,79 @@ function Prompt({ text }: { text: string }) {
   );
 }
 
+// ---------- STEP 5: Mathematical Setup (always rendered, always concept-specific) ----------
+function MathSetupStep({ concept }: { concept: Concept }) {
+  // Build the setup narrative from THIS concept's own equations and structure.
+  const primary = concept.equations[0];
+  const secondary = concept.equations[1] ?? null;
+
+  const knowns = concept.setup.slice(0, 2);
+  const reasoning = concept.mathMeaning;
+
+  return (
+    <div className="clay p-6">
+      <h2 className="flex items-center gap-2 text-lg font-extrabold">
+        <Sigma className="size-5 text-[var(--clay-4)]" /> Mathematical setup
+      </h2>
+      <p className="mt-2 text-sm text-muted-foreground">
+        How a physicist turns this situation into solvable math — the same ritual every time.
+      </p>
+
+      <ol className="mt-5 space-y-4">
+        <li className="clay-sm p-4">
+          <p className="text-xs font-extrabold uppercase tracking-wide text-[var(--clay-primary-deep)]">1 · What principle governs this situation?</p>
+          <p className="mt-1.5 text-sm leading-6">{concept.recognition}</p>
+        </li>
+        <li className="clay-sm p-4">
+          <p className="text-xs font-extrabold uppercase tracking-wide text-[var(--clay-primary-deep)]">2 · Identify knowns, unknowns, and the target</p>
+          <p className="mt-1.5 text-sm leading-6">{knowns[0]}</p>
+          {knowns[1] && <p className="mt-1 text-sm leading-6">{knowns[1]}</p>}
+          <p className="mt-2 text-xs text-muted-foreground">Write every quantity with its unit and sign before choosing any equation. The unknown tells you which equation to reach for.</p>
+        </li>
+        <li className="clay-sm p-4">
+          <p className="text-xs font-extrabold uppercase tracking-wide text-[var(--clay-primary-deep)]">3 · The governing equation(s)</p>
+          {primary && (
+            <div className="mt-2">
+              <Eq tex={primary.tex} label={primary.label} />
+              <p className="mt-1.5 text-sm leading-6"><strong>Why this one:</strong> {primary.where}</p>
+            </div>
+          )}
+          {secondary && (
+            <div className="mt-3">
+              <Eq tex={secondary.tex} label={secondary.label} />
+              <p className="mt-1.5 text-sm leading-6"><strong>When it joins the setup:</strong> {secondary.where}</p>
+            </div>
+          )}
+        </li>
+        <li className="clay-sm p-4">
+          <p className="text-xs font-extrabold uppercase tracking-wide text-[var(--clay-primary-deep)]">4 · What the math is actually saying</p>
+          <p className="mt-1.5 text-sm leading-6">{reasoning}</p>
+        </li>
+        {concept.derivation && (
+          <li className="clay-sm p-4">
+            <p className="text-xs font-extrabold uppercase tracking-wide text-[var(--clay-primary-deep)]">5 · Where the equation comes from (derivation)</p>
+            <Eq tex={concept.derivation.tex} className="mt-2" />
+            <ol className="mt-3 space-y-2">
+              {concept.derivation.steps.map((s, i) => (
+                <li key={i} className="flex gap-2.5 text-sm">
+                  <span className="clay-sm flex h-5 w-5 shrink-0 items-center justify-center bg-[var(--clay-4)] text-[10px] font-bold text-white">{i + 1}</span>
+                  <span className="leading-6">{s}</span>
+                </li>
+              ))}
+            </ol>
+          </li>
+        )}
+        <li className="clay-sm p-4">
+          <p className="text-xs font-extrabold uppercase tracking-wide text-[var(--clay-primary-deep)]">{concept.derivation ? "6" : "5"} · Worked setup — symbolic first, numbers last</p>
+          <p className="mt-1.5 text-sm leading-6">
+            Solve for the unknown <em>symbolically</em> before substituting anything. With {concept.name.toLowerCase()}: start from {primary ? <M>{primary.tex}</M> : "the governing equation"}, isolate the unknown, check the units of the final expression, and only then plug in values. Symbolic-first setups catch sign and algebra errors before they hide inside a calculator.
+          </p>
+        </li>
+      </ol>
+    </div>
+  );
+}
+
 // ---------- Main lesson ----------
 export default function Lesson() {
   const { courseId, conceptId } = useParams();
@@ -357,20 +430,7 @@ export default function Lesson() {
               </div>
             )}
 
-            {step === 4 && concept.derivation && (
-              <div className="clay p-6">
-                <h2 className="flex items-center gap-2 text-lg font-extrabold"><FlaskConical className="size-5 text-[#ffc46b]" /> Derivation — where this comes from</h2>
-                <Eq tex={concept.derivation.tex} className="mt-4" />
-                <ol className="mt-4 space-y-2 text-sm">
-                  {concept.derivation.steps.map((s, i) => (
-                    <li key={i} className="clay-sm flex gap-3 p-3">
-                      <span className="clay-sm flex h-6 w-6 shrink-0 items-center justify-center bg-[var(--clay-4)] text-[11px] font-bold text-white">{i + 1}</span>
-                      <span className="leading-6">{s}</span>
-                    </li>
-                  ))}
-                </ol>
-              </div>
-            )}
+            {step === 4 && <MathSetupStep concept={concept} />}
 
             {step === 5 && (
               <div className="clay p-6">

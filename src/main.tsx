@@ -27,6 +27,8 @@ const LearnHome = lazy(() => import("./pages/Learn.tsx").then((m) => ({ default:
 const CoursePage = lazy(() => import("./pages/Learn.tsx").then((m) => ({ default: m.CoursePage })));
 const Lesson = lazy(() => import("./pages/Lesson.tsx"));
 const Practice = lazy(() => import("./pages/Practice.tsx"));
+const Courses = lazy(() => import("./pages/Courses.tsx"));
+const CourseDetail = lazy(() => import("./pages/Courses.tsx").then((m) => ({ default: m.CourseDetail })));
 const Labs = lazy(() => import("./pages/Labs.tsx"));
 const Sims = lazy(() => import("./pages/Sims.tsx"));
 const KnowledgeMap = lazy(() => import("./pages/Map.tsx"));
@@ -146,6 +148,8 @@ createRoot(document.getElementById("root")!).render(
                 <Route path="/learn" element={<LearnHome />} />
                 <Route path="/learn/:courseId" element={<CoursePage />} />
                 <Route path="/learn/:courseId/:conceptId" element={<Lesson />} />
+                <Route path="/courses" element={<Courses />} />
+                <Route path="/courses/:courseId" element={<CourseDetail />} />
                 <Route path="/practice" element={<Practice />} />
                 <Route path="/labs" element={<Labs />} />
                 <Route path="/sims" element={<Sims />} />

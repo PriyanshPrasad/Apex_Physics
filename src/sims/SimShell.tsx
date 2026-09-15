@@ -43,7 +43,7 @@ export function SimShell({
   disableStep,
   showControls = true,
 }: {
-  children: ReactNode;
+  children?: ReactNode;
   physics: SimPhysicsSpec;
   prediction?: PredictionSpec;
   /** bump to un-pause when the student clicks "run it" on the prediction */

@@ -1,64 +1,6 @@
 import { useRef, useState } from "react";
 import { useCanvasLoop, SimFrame, SimRow, Slider, Toggle, arrow, grid, ball, shade } from "./framework";
 
-// ===================== FLUIDS =====================
-export function FluidsSim() {
-  const [fluid, setFluid] = useState<"water" | "oil" | "mercury">("water");
-  const [depthM, setDepthM] = useState(3);
-  const [rhoObj, setRhoObj] = useState(600);
-  const ref = useCanvasLoop(({ ctx, w, h, fg, muted }) => {
-    const rhoF = fluid === "water" ? 1000 : fluid === "oil" ? 900 : 13600;
-    const surfY = h * 0.18;
-    ctx.fillStyle = fluid === "water" ? "rgba(111,214,200,0.25)" : fluid === "oil" ? "rgba(255,196,107,0.25)" : "rgba(143,184,247,0.3)";
-    ctx.fillRect(0, surfY, w, h - surfY);
-    ctx.strokeStyle = muted; ctx.lineWidth = 2;
-    ctx.beginPath(); ctx.moveTo(0, surfY); ctx.lineTo(w, surfY); ctx.stroke();
-    // depth bands
-    ctx.font = "10px system-ui";
-    for (let d = 1; d <= 4; d++) {
-      const y = surfY + (d / 4) * (h - surfY - 10);
-      ctx.fillStyle = muted;
-      ctx.fillText(`${d} m`, w - 34, y);
-      ctx.strokeStyle = "rgba(128,120,160,0.2)";
-      ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(w, y); ctx.stroke();
-    }
-    // object
-    const frac = Math.min(1, rhoObj / rhoF);
-    const objR = 22;
-    const objY = surfY + frac * (h - surfY - 10) * 0.5 + objR;
-    ctx.fillStyle = "#7c6cf4";
-    ctx.beginPath(); ctx.roundRect(w * 0.4 - objR, objY - objR, objR * 2, objR * 2, 8); ctx.fill();
-    // buoyancy arrows
-    const Fb = frac * 1000 * 9.8;
-    const W = (rhoObj / 1000) * 1000 * 9.8 * 0.001 * 1000; // normalized display
-    arrow(ctx, w * 0.4, objY, w * 0.4, objY - 50 * frac, "#6fd6c8", 2.5);
-    arrow(ctx, w * 0.4, objY, w * 0.4, objY + 50, "#ff8fb1", 2.5);
-    // pressure gauge
-    const P = 101325 + rhoF * 9.8 * depthM;
-    ctx.fillStyle = fg; ctx.font = "12px system-ui";
-    ctx.fillText(`Fluid: ${fluid} (ρ = ${rhoF} kg/m³)`, 12, 20);
-    ctx.fillText(`P at ${depthM} m = ${(P / 1000).toFixed(0)} kPa (abs)`, 12, 38);
-    ctx.fillText(`ρ_obj = ${rhoObj} → ${rhoObj < rhoF ? "floats" : rhoObj === rhoF ? "hovers" : "sinks"}`, 12, 56);
-    // object buoyancy annotation
-    ctx.fillStyle = muted;
-    ctx.fillText(`F_b = ρ_f · g · V_disp`, w * 0.4 + 40, objY + 4);
-  });
-  return (
-    <div>
-      <SimFrame height={320}><canvas ref={ref} className="h-full w-full" /></SimFrame>
-      <SimRow>
-        <div className="flex gap-2">
-          {(["water", "oil", "mercury"] as const).map((f) => (
-            <button key={f} onClick={() => setFluid(f)} className="clay-sm clay-press px-3 py-1.5 text-xs font-semibold" style={fluid === f ? { background: "var(--clay-primary-tint)", color: "var(--clay-primary-deep)" } : undefined}>{f}</button>
-          ))}
-        </div>
-        <Slider label="Probe depth" value={depthM} min={0} max={10} step={0.5} onChange={setDepthM} format={(v) => `${v} m`} />
-        <Slider label="ρ object" value={rhoObj} min={100} max={3000} step={50} onChange={setRhoObj} format={(v) => `${v} kg/m³`} />
-      </SimRow>
-    </div>
-  );
-}
-
 // ===================== GAS PARTICLES =====================
 export function GasSim() {
   const [temp, setTemp] = useState(300);
@@ -934,7 +876,6 @@ export function CalculusSim() {
 
 // ---- all together ----
 export const FIELD_SIMS: Record<string, React.ComponentType> = {
-  fluids: FluidsSim,
   gas: GasSim,
   charges: ChargesSim,
   magnetism: MagnetismSim,

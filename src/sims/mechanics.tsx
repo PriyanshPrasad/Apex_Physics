@@ -87,9 +87,6 @@ export function VectorsSim() {
           correct: 1,
           explain: "A_x = A cos θ, and cosine falls from 0.87 to 0.5 as θ grows from 30° to 60° — the horizontal projection shrinks while the vertical one grows.",
         }}
-        running={true}
-        onPlayPause={() => {}}
-        onReset={() => {}}
       />
     </div>
   );
@@ -226,6 +223,11 @@ export function ProjectileSim() {
 
   const launch = () => {
     const rad = (angle * Math.PI) / 180;
+    // keep old flight as a ghost trail, start a fresh "live" trail
+    trailsRef.current = trailsRef.current
+      .map((tr) => (tr.label === "live" && tr.pts.length > 1 ? { ...tr, label: `shot ${trailsRef.current.length}` } : tr.label === "live" ? null : tr))
+      .filter((tr): tr is { pts: [number, number][]; label: string } => tr !== null)
+      .slice(-4);
     stateRef.current = { x: 0, y: h0, vx: v0 * Math.cos(rad), vy: v0 * Math.sin(rad), t: 0, flying: true, landed: false };
     setRunning(true);
     setTick((n) => n + 1);
@@ -251,8 +253,16 @@ export function ProjectileSim() {
     }
 
     const groundY = h - 30;
-    const spanX = Math.max(30, st.x * 1.35, ...trailsRef.current.flatMap((tr) => tr.pts.map((p) => p[0])) * 1.15, 50);
-    const spanY = Math.max(20, h0 * 1.3, ...trailsRef.current.flatMap((tr) => tr.pts.map((p) => p[1])) * 1.25, 30);
+    const allX = [30, st.x * 1.35];
+    const allY = [20, h0 * 1.3];
+    trailsRef.current.forEach((tr) =>
+      tr.pts.forEach((p) => {
+        allX.push(p[0] * 1.15);
+        allY.push(p[1] * 1.25);
+      }),
+    );
+    const spanX = Math.max(...allX, 50);
+    const spanY = Math.max(...allY, 30);
     const scale = Math.min((w - 60) / spanX, (groundY - 40) / spanY);
 
     grid(ctx, w, h, 40);
@@ -589,23 +599,28 @@ export function EnergySim() {
       const y2 = trackH(sRef.current + 0.002);
       const slope = (y2 - y) / 0.002;
       const aG = -9.8 * 6 * slope / Math.sqrt(1 + slope * slope); // scaled gravity along track
-      if (frictionless) {
-        vRef.current += aG * dt;
-      } else {
-        const aFric = -0.55 * Math.sign(vRef.current) * Math.abs(vRef.current + 1e-6) * 0.02 - Math.sign(slope) * 0.35;
-        vRef.current += (aG + aFric) * dt;
-      }
-      vRef.current = Math.max(0, Math.min(vRef.current, 9));
+      // friction: rolling resistance ∝ v (dissipative — always opposes motion),
+      // plus a constant opposing term while moving. No energy is created when stalled.
+      const moving = Math.abs(vRef.current) > 0.02;
+      const aFric = frictionless || !moving ? 0 : -0.35 * Math.sign(vRef.current) - 0.05 * vRef.current;
+      vRef.current += (aG + aFric) * dt;
+      // a stalled car on a slope rolls back down; only settle where the track is flat
+      if (!moving && Math.abs(aG) < 0.05) vRef.current = 0;
+      vRef.current = Math.max(-4, Math.min(9, vRef.current));
       sRef.current += (vRef.current * dt) / 22;
-      if (sRef.current > 1) sRef.current = 1;
-      if (vRef.current < 0.02 && Math.abs(aG) < 0.05) vRef.current = 0; // stalled
+      if (sRef.current > 1) { sRef.current = 1; vRef.current = Math.min(vRef.current, 0); }
+      if (sRef.current < 0.03) { sRef.current = 0.03; vRef.current = Math.max(vRef.current, 0); }
     }
     const s = sRef.current;
     const yNorm = trackH(s);
+    // Real bookkeeping: the car started at trackH(0.06). U = current height fraction,
+    // K = whatever U didn't take, minus friction losses accumulated so far.
     const H0 = trackH(0.06);
     const U = yNorm / H0;
-    const K = Math.max(0, 1 - U - (frictionless ? 0 : Math.min(0.85, sRef.current * 0.5)));
-    const v = Math.sqrt(Math.max(0, K)) * vRef.current * 1.0 + Math.sqrt(2 * 9.8 * Math.max(0, K) * H0 * 14);
+    const lost = frictionless ? 0 : Math.min(0.85, s * 0.5);
+    const K = Math.max(0, 1 - U - lost);
+    // v² = 2g(h0 − h): converted from the actual energy split (meters-on-screen scale)
+    const v = Math.sqrt(Math.max(0, K) * 2 * 9.8 * H0 * 14);
 
     // track
     ctx.strokeStyle = muted; ctx.lineWidth = 3;
@@ -620,9 +635,9 @@ export function EnergySim() {
     ball(ctx, cx, groundY - yNorm * scaleY - 8, 10, "#7c6cf4");
     // speed arrow
     arrow(ctx, cx, groundY - yNorm * scaleY - 26, cx + Math.min(60, v * 3), groundY - yNorm * scaleY - 26, "#8fb8f7", 2);
-    // energy bars
+    // energy bars reflect the real split: K + U + lost = 1 (of the starting energy)
     const bx = w - 130;
-    const bars: [string, number, string][] = [["K", K, "#ff8fb1"], ["U", U, "#6fd6c8"], ["lost", frictionless ? 0 : Math.min(0.85, s * 0.5), "#a49dbf"]];
+    const bars: [string, number, string][] = [["K", K, "#ff8fb1"], ["U", U, "#6fd6c8"], ["lost", lost, "#a49dbf"]];
     ctx.font = "11px system-ui";
     bars.forEach(([label, val, color], i) => {
       const by = 20 + i * 34;
@@ -1056,16 +1071,20 @@ export function RollingSim() {
   const [running, setRunning] = useState(true);
   const [tick, setTick] = useState(0);
   const distRef = useRef(0);
+  const vRef = useRef(0);
   const clock = useClock();
-  const reset = () => { distRef.current = 0; setTick((n) => n + 1); };
+  const reset = () => { distRef.current = 0; vRef.current = 0; setTick((n) => n + 1); };
 
   const ref = useCanvasLoop(({ ctx, w, h, fg, muted }) => {
     const { dt } = clock(performance.now(), running);
     const c = shape === "hoop" ? 1 : shape === "disk" ? 0.5 : 0.4;
     const slope = 0.32;
     const a = (9.8 * Math.sin(Math.atan(slope))) / (1 + c); // rolling acceleration, exact
-    if (dt > 0) distRef.current += 0.5 * a * dt * dt * 12 + 0; // demo-scaled
-    if (dt > 0) distRef.current += (0.5 * a * dt) * dt * 0;
+    // proper kinematics: velocity accumulates acceleration, position accumulates velocity
+    if (dt > 0 && distRef.current < 1) {
+      vRef.current += a * dt * 2.4; // time-scale for the demo
+      distRef.current += vRef.current * dt * 0.32;
+    }
     const d = Math.min(1, distRef.current);
     const rampY = (x: number) => h * 0.25 + x * slope * (w * 0.9);
     ctx.strokeStyle = muted; ctx.lineWidth = 3;
@@ -1088,7 +1107,7 @@ export function RollingSim() {
     ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(R, 0); ctx.stroke();
     ctx.restore();
     ctx.fillStyle = fg; ctx.font = "12px system-ui";
-    ctx.fillText(`a = g·sinθ/(1 + c) with c = ${c} → a = ${a.toFixed(2)} m/s²  ·  distance ∝ ${((1 / (1 + c)) / (1 / 1.4)).toFixed(2)}× sphere at same t`, 12, 20);
+    ctx.fillText(`a = g·sinθ/(1+c) with c = ${c} → a = ${a.toFixed(2)} m/s²   v = ${vRef.current.toFixed(2)} m/s`, 12, 20);
   }, { running, resetKey: tick });
 
   return (

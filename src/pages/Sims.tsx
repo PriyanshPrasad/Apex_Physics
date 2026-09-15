@@ -14,6 +14,7 @@ const SIM_META: { key: string; name: string; blurb: string; course: string }[] =
   { key: "rotation", name: "Rotational Inertia", blurb: "Hoop vs disk vs sphere spin-up race.", course: "P1 · CM" },
   { key: "torque", name: "Torque Seesaw", blurb: "Balance torques, not forces.", course: "P1 · CM" },
   { key: "shm", name: "SHM Oscillator", blurb: "Spring or pendulum, live energy split.", course: "P1 · CM" },
+  { key: "rolling", name: "Rolling Race", blurb: "Hoop vs disk vs sphere — shape decides.", course: "P1 · CM" },
   { key: "fluids", name: "Pressure & Buoyancy", blurb: "Depth, density, floating equilibrium.", course: "P1" },
   { key: "gas", name: "Gas Particles", blurb: "Temperature, volume, and pressure from collisions.", course: "P2" },
   { key: "charges", name: "Charge Field Studio", blurb: "Drag charges; field lines and vector field.", course: "P2 · CEM" },
