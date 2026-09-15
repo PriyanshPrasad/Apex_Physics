@@ -1,7 +1,7 @@
 import { Link, useNavigate } from "react-router";
 import {
   Flame, Target, Zap, Clock, ListChecks, ArrowRight, ClipboardList,
-  TrendingUp, TriangleAlert, BookOpen, Sparkles,
+  TrendingUp, TriangleAlert, BookOpen, Sparkles, Stethoscope,
 } from "lucide-react";
 import { useProgress, masteryOf } from "@/lib/progress";
 import { COURSE_MAP, UNITS_BY_COURSE, CONCEPT_MAP, type CourseId } from "@/data/curriculum";
@@ -79,6 +79,9 @@ export default function Dashboard() {
                 <ClipboardList className="mr-1.5 size-4" /> Take the diagnostic
               </Button>
             )}
+            <Button onClick={() => navigate("/ap-diagnostic")} variant="ghost" className="font-semibold">
+              <Stethoscope className="mr-1.5 size-4" /> AP-style diagnostic
+            </Button>
           </div>
         </div>
       </div>

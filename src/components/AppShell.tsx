@@ -3,7 +3,7 @@ import { Link, NavLink, Outlet } from "react-router";
 import {
   LayoutDashboard, BookOpen, Dumbbell, FlaskConical, Map as MapIcon,
   Sigma, TriangleAlert, TrendingUp, ClipboardList, Search, Sun, Moon,
-  Blocks, Scale, LogOut, Atom, Ruler,
+  Blocks, Scale, LogOut, Atom, Ruler, Stethoscope,
 } from "lucide-react";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { searchCurriculum, COURSES } from "@/data/curriculum";
@@ -25,6 +25,7 @@ const NAV = [
   { to: "/progress", label: "Progress", icon: TrendingUp },
   { to: "/compare", label: "Compare Courses", icon: Scale },
   { to: "/diagnostic", label: "Diagnostic", icon: ClipboardList },
+  { to: "/ap-diagnostic", label: "AP Diagnostic", icon: Stethoscope },
 ];
 
 function ThemeToggle() {

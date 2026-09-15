@@ -13,7 +13,6 @@ export type ErrorCategory =
   | "calculus"
   | "assumption"
   | "proportional"
-  | "experimental"
   | "experimental";
 
 export type DiagnosticState = {

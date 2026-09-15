@@ -1,9 +1,9 @@
-import { useMemo, useState, useCallback } from "react";
+import { useMemo, useState, useCallback, useEffect, useRef } from "react";
 import { Link } from "react-router";
 import { ArrowRight, Lightbulb, RotateCcw, Shuffle, PenLine, Check, Play, Target, Timer, Zap, X } from "lucide-react";
 import { CONCEPTS, COURSE_MAP, UNITS, type CourseId } from "@/data/curriculum";
 import {
-  filterQuestions, pickSmart, buildSet, bankStats, DIFFICULTY_LABELS, DIFFICULTY_ORDER, SKILL_LABELS,
+  filterQuestions, pickSmart, buildSet, bankStats, DIFFICULTY_LABELS, DIFFICULTY_ORDER, SKILL_LABELS, ARCHETYPE_COUNT,
   type QEntry, type QFilters, type Difficulty, type QuestionType, type SelectionCtx,
 } from "@/data/qbank";
 import { useProgress, progress, masteryOf } from "@/lib/progress";
@@ -22,6 +22,8 @@ const MODES = [
   { id: "mastery", label: "Topic Mastery", n: 100, desc: "100-question pool" },
   { id: "weak", label: "Weakness Practice", n: 15, desc: "targets your weak concepts" },
   { id: "challenge", label: "Challenge Mode", n: 20, desc: "hard → expert only" },
+  { id: "timed", label: "Timed AP Practice", n: 20, desc: "90 seconds per question" },
+  { id: "adaptive", label: "Adaptive Practice", n: 20, desc: "difficulty adjusts as you go" },
 ] as const;
 
 const DIFFICULTIES: (Difficulty | "any")[] = ["any", "easy", "medium", "hard", "ap", "challenge"];
@@ -43,11 +45,24 @@ function Rich({ text }: { text: string }) {
   );
 }
 
+/** Pick a question at (or nearest to) a target difficulty. */
+function nearestDiff(pool: QEntry[], target: Difficulty): QEntry | null {
+  const ti = DIFFICULTY_ORDER.indexOf(target);
+  for (let off = 0; off < DIFFICULTY_ORDER.length; off++) {
+    for (const d of [ti - off, ti + off]) {
+      if (d < 0 || d >= DIFFICULTY_ORDER.length) continue;
+      const c = pool.filter((q) => q.difficulty === DIFFICULTY_ORDER[d]);
+      if (c.length > 0) return c[Math.floor(Math.random() * c.length)];
+    }
+  }
+  return null;
+}
+
 // ------------------------------------------------------------
 // One question card (used by sessions and free-run)
 // ------------------------------------------------------------
 function QuestionCard({
-  q, sessionPos, sessionLen, onNext, showSession, timed,
+  q, sessionPos, sessionLen, onNext, showSession, timed, onGraded,
 }: {
   q: QEntry;
   sessionPos?: number;
@@ -55,10 +70,26 @@ function QuestionCard({
   onNext?: () => void;
   showSession?: boolean;
   timed?: boolean;
+  /** Called once when the answer is checked (session grading). */
+  onGraded?: (q: QEntry, correct: boolean) => void;
 }) {
   const [selected, setSelected] = useState<number | null>(null);
   const [checked, setChecked] = useState(false);
   const [showDiagramZoom, setShowDiagramZoom] = useState(false);
+  const [timeLeft, setTimeLeft] = useState(90);
+
+  // per-question countdown (timed mode only)
+  useEffect(() => {
+    if (!timed || checked) return;
+    const iv = setInterval(() => setTimeLeft((s) => s - 1), 1000);
+    return () => clearInterval(iv);
+  }, [timed, checked]);
+  useEffect(() => {
+    if (!timed || checked || timeLeft > 0) return;
+    setChecked(true);
+    record(q.conceptId, false, q.category);
+    onGraded?.(q, false);
+  }, [timeLeft, timed, checked]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const correct = checked && selected === q.correct;
   const course = COURSE_MAP[q.course];
@@ -74,8 +105,15 @@ function QuestionCard({
           </span>
           <span className="clay-sm px-2 py-0.5 font-bold text-muted-foreground">{SKILL_LABELS[q.type]}</span>
         </div>
-        {showSession && sessionPos !== undefined && sessionLen && (
-          <span className="text-xs font-bold text-muted-foreground">{sessionPos + 1} / {sessionLen}{timed ? " · timed" : ""}</span>
+        {showSession && sessionPos !== undefined && (
+          <span className="text-xs font-bold text-muted-foreground">
+            {sessionPos + 1}{sessionLen ? ` / ${sessionLen}` : ""}
+          </span>
+        )}
+        {timed && !checked && (
+          <span className={cn("clay-sm px-2 py-0.5 text-xs font-extrabold", timeLeft <= 15 ? "text-destructive" : "text-muted-foreground")}>
+            ⏱ {Math.max(0, timeLeft)}s
+          </span>
         )}
       </div>
 
@@ -118,7 +156,9 @@ function QuestionCard({
             disabled={selected === null}
             onClick={() => {
               setChecked(true);
-              record(q.conceptId, selected === q.correct, q.category);
+              const ok = selected === q.correct;
+              record(q.conceptId, ok, q.category);
+              onGraded?.(q, ok);
             }}
             className="clay-btn clay-press border-0 font-bold"
           >
@@ -130,7 +170,11 @@ function QuestionCard({
       {checked && (
         <div className="clay-tint mt-4 space-y-3 p-4 text-sm">
           <p className="font-bold">
-            {correct ? "✓ Correct." : `✗ Not quite — the answer is ${"ABCD"[q.correct]} (${q.choices[q.correct]}).`}
+            {correct
+              ? "✓ Correct."
+              : selected === null
+                ? `⏱ Time expired — the answer is ${"ABCD"[q.correct]} (${q.choices[q.correct]}).`
+                : `✗ Not quite — the answer is ${"ABCD"[q.correct]} (${q.choices[q.correct]}).`}
           </p>
 
           {!correct && selected !== null && q.tempt?.[selected] && (
@@ -296,8 +340,20 @@ export default function Practice() {
   const [mode, setMode] = useState<string>("standard");
 
   // session state
-  const [session, setSession] = useState<QEntry[] | null>(null);
+  const [session, setSession] = useState<(QEntry | null)[] | null>(null);
+  const [sessionLen, setSessionLen] = useState(0);
+  const [stack, setStack] = useState<{ q: QEntry; correct: boolean }[]>([]);
+  const [liveMode, setLiveMode] = useState<"timed" | "adaptive" | null>(null);
+  const [liveCurrent, setLiveCurrent] = useState<QEntry | null>(null);
   const [pos, setPos] = useState(0);
+  // timed session ticking
+  useEffect(() => {
+    const total = liveMode ? sessionLen : (session?.length ?? 0);
+    if (session === null || pos >= total) return; // pause after done
+    const iv = setInterval(() => setElapsed((s) => s + 1), 1000);
+    return () => clearInterval(iv);
+  }, [session, pos, liveMode, sessionLen]);
+
   const [startedAt, setStartedAt] = useState<number | null>(null);
   const [elapsed, setElapsed] = useState(0);
   const [results, setResults] = useState<{ id: string; correct: boolean }[]>([]);
@@ -333,8 +389,25 @@ export default function Practice() {
     if (modeDef.id === "challenge") {
       const hard = p2.filter((q) => q.difficulty === "hard" || q.difficulty === "ap" || q.difficulty === "challenge");
       if (hard.length > 0) p2 = hard;
+    }    const n = Math.min(modeDef.n, p2.length);
+    if (modeDef.id === "timed" || modeDef.id === "adaptive") {
+      // Live selection modes: stack holds answered questions; the current
+      // question is picked on demand so difficulty can react mid-session.
+      setStack([]);
+      setLiveCurrent(null);
+      setLiveMode(modeDef.id as "timed" | "adaptive");
+      setSession([null]); // sentinel; real length tracked in sessionLen
+      setSessionLen(n);
+      setPos(0);
+      setResults([]);
+      setStartedAt(Date.now());
+      setElapsed(0);
+      return;
     }
-    const n = Math.min(modeDef.n, p2.length);
+    setLiveMode(null);
+    setLiveCurrent(null);
+    setStack([]);
+    setSessionLen(0);
     const set = buildSet(p2, n, ctx);
     setSession(set.length > 0 ? set : null);
     setPos(0);
@@ -348,8 +421,33 @@ export default function Practice() {
     setFreeKey((k) => k + 1);
   };
 
-  const current = session?.[pos];
-  const done = session !== null && pos >= session.length;
+  const current = liveMode
+    ? null // resolved via liveCurrent below
+    : (session?.[pos] ?? null);
+  const done = session !== null && pos >= (liveMode ? sessionLen : session.length);
+
+  // Live modes (timed/adaptive): pick the next question on demand.
+  useEffect(() => {
+    if (!liveMode || !session) return;
+    if (pos >= sessionLen) { if (liveCurrent) setLiveCurrent(null); return; }
+    if (liveCurrent) return; // already showing a question
+    let target: Difficulty = "medium";
+    if (liveMode === "adaptive" && stack.length > 0) {
+      const last = stack[stack.length - 1];
+      const di = DIFFICULTY_ORDER.indexOf(last.q.difficulty);
+      const recent = stack.slice(-3);
+      if (recent.length >= 2 && recent.slice(-2).every((s) => !s.correct)) {
+        target = DIFFICULTY_ORDER[Math.max(0, di - 1)]; // stepping down after 2 misses
+      } else if (recent.length >= 2 && recent.every((s) => s.correct)) {
+        target = DIFFICULTY_ORDER[Math.min(4, di + 1)]; // stepping up after a streak
+      } else {
+        target = last.q.difficulty;
+      }
+    }
+    const chosen = nearestDiff(pool, target) ?? pickSmart(pool, ctx);
+    if (chosen) setLiveCurrent(chosen);
+    else setSessionLen(pos); // pool exhausted → end here
+  }, [liveMode, session, pos, sessionLen, liveCurrent, stack, pool]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <div className="mx-auto max-w-4xl">
@@ -357,7 +455,7 @@ export default function Practice() {
         <div>
           <h1 className="text-3xl font-extrabold tracking-tight">Practice</h1>
           <p className="text-sm text-muted-foreground">
-            {stats.total} AP-style questions · {stats.hand} hand-written + {stats.gen} generated variants across {ARCHETYPE_COUNT_LABEL} reasoning archetypes
+            {stats.total} AP-style questions · {stats.hand} hand-written + {stats.gen} generated variants across {ARCHETYPE_COUNT} reasoning archetypes
           </p>
         </div>
         <div className="clay-sm flex overflow-hidden p-1">
@@ -448,28 +546,34 @@ export default function Practice() {
           ) : done ? (
             <SessionSummary
               results={results}
-              total={session.length}
+              total={liveMode ? sessionLen : session.length}
               elapsed={elapsed}
               onRestart={startSession}
               onExit={() => setSession(null)}
             />
-          ) : current ? (
+          ) : (current || (liveMode && liveCurrent)) ? (
             <div className="mt-4">
               <div className="mb-3 h-2 overflow-hidden rounded-full clay-inset">
-                <div className="h-full rounded-full bg-[var(--clay-4)] transition-all" style={{ width: `${(pos / session.length) * 100}%` }} />
+                <div
+                  className="h-full rounded-full bg-[var(--clay-4)] transition-all"
+                  style={{ width: `${(pos / (liveMode ? sessionLen : session.length)) * 100}%` }}
+                />
               </div>
               <QuestionCard
-                key={current.id + pos}
-                q={current}
+                key={(current ?? liveCurrent)!.id + pos}
+                q={(current ?? liveCurrent)!}
                 sessionPos={pos}
-                sessionLen={session.length}
+                sessionLen={liveMode ? sessionLen : session.length}
                 showSession
-                onNext={() => {
-                  // grade the current question before moving on
-                  const wasCorrect = document.querySelector('[data-checked="true"]') !== null;
-                  void wasCorrect;
-                  setPos((n) => n + 1);
+                timed={liveMode === "timed"}
+                onGraded={(q, ok) => {
+                  setResults((rs) => [...rs, { id: q.id, correct: ok }]);
+                  if (liveMode) {
+                    setStack((st) => [...st, { q, correct: ok }]);
+                    setLiveCurrent(null); // trigger next pick
+                  }
                 }}
+                onNext={() => setPos((n) => n + 1)}
               />
             </div>
           ) : null}
@@ -560,4 +664,4 @@ function FilterBar({
   );
 }
 
-const ARCHETYPE_COUNT_LABEL = "60+";
+

@@ -38,6 +38,7 @@ const Mistakes = lazy(() => import("./pages/Mistakes.tsx"));
 const ProgressPage = lazy(() => import("./pages/Progress.tsx"));
 const Compare = lazy(() => import("./pages/Compare.tsx"));
 const Diagnostic = lazy(() => import("./pages/Diagnostic.tsx"));
+const ApDiagnostic = lazy(() => import("./pages/ApDiagnostic.tsx"));
 
 // Simple loading fallback for route transitions
 function RouteLoading() {
@@ -148,8 +149,6 @@ createRoot(document.getElementById("root")!).render(
                 <Route path="/learn" element={<LearnHome />} />
                 <Route path="/learn/:courseId" element={<CoursePage />} />
                 <Route path="/learn/:courseId/:conceptId" element={<Lesson />} />
-                <Route path="/courses" element={<LearnHome />} />
-                <Route path="/courses/:courseId" element={<CoursePage />} />
                 <Route path="/courses" element={<Courses />} />
                 <Route path="/courses/:courseId" element={<CourseDetail />} />
                 <Route path="/practice" element={<Practice />} />
@@ -162,6 +161,7 @@ createRoot(document.getElementById("root")!).render(
                 <Route path="/progress" element={<ProgressPage />} />
                 <Route path="/compare" element={<Compare />} />
                 <Route path="/diagnostic" element={<Diagnostic />} />
+                <Route path="/ap-diagnostic" element={<ApDiagnostic />} />
               </Route>
               <Route path="*" element={<NotFound />} />
             </Routes>
