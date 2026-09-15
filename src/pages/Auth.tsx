@@ -23,7 +23,18 @@ function Auth({ redirectAfterAuth }: AuthProps = {}) {
   const [step, setStep] = useState<"signIn" | { email: string }>("signIn");
   const [otp, setOtp] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [slow, setSlow] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // If sign-in is taking unusually long, say so instead of hanging silently.
+  useEffect(() => {
+    if (!isLoading) {
+      setSlow(false);
+      return;
+    }
+    const timer = setTimeout(() => setSlow(true), 8000);
+    return () => clearTimeout(timer);
+  }, [isLoading]);
 
   useEffect(() => {
     if (!authLoading && isAuthenticated) {
@@ -118,9 +129,14 @@ function Auth({ redirectAfterAuth }: AuthProps = {}) {
                   className="clay-btn clay-press mt-4 w-full border-0 py-3.5 font-extrabold"
                 >
                   {isLoading ? <Loader2 className="mr-2 size-4 animate-spin" /> : <ArrowRight className="mr-2 size-4" />}
-                  Continue
+                  {isLoading ? "Sending code…" : "Continue"}
                 </Button>
               </form>
+              {slow && step === "signIn" && (
+                <p className="mt-3 text-center text-xs font-semibold text-[#c08a2d]">
+                  Still sending… the email can take up to a minute, and often lands in spam.
+                </p>
+              )}
               <div className="my-5 flex items-center gap-3">
                 <span className="h-px flex-1 bg-border" />
                 <span className="text-xs font-bold text-muted-foreground">or</span>
@@ -132,8 +148,14 @@ function Auth({ redirectAfterAuth }: AuthProps = {}) {
                 disabled={isLoading}
                 className="clay-sm clay-press w-full py-3 font-extrabold"
               >
-                <UserX className="mr-2 size-4" /> Continue as guest
+                {isLoading ? <Loader2 className="mr-2 size-4 animate-spin" /> : <UserX className="mr-2 size-4" />}
+                {isLoading ? "Signing you in…" : "Continue as guest"}
               </Button>
+              {slow && (
+                <p className="mt-3 text-center text-xs font-semibold text-[#c08a2d]">
+                  Still connecting… if this doesn't complete in a few more seconds, reload the page and try again.
+                </p>
+              )}
               <p className="mt-6 text-center text-[11px] leading-5 text-muted-foreground">
                 Physics 1 · Physics 2 · C: Mechanics · C: E&M<br />
                 Curriculum aligned to the current College Board frameworks
