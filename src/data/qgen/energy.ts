@@ -166,8 +166,8 @@ export const ENERGY: Archetype[] = [
           tempt: "F = −dU/dx vanishes at any extremum, max or min. Stability is what distinguishes them.",
         },
         "the point where U(x) crosses zero": {
-          text: "Zero net force; stable equilibrium — small nudges return it",
-          tempt: "U = 0 is an arbitrary reference point. Zero VALUE tells you nothing about force.",
+          text: "Nothing special — the zero of U is an arbitrary reference; only the SLOPE gives force",
+          tempt: "U = 0 is wherever you set the reference level. Force comes from −dU/dx, not from U's value.",
         },
         "the point where U(x) is steepest": {
           text: "Maximum magnitude of force, directed downhill",
@@ -258,7 +258,7 @@ export const MOMENTUM: Archetype[] = [
         { desc: "bounce apart but with a loud clank and slight warming", K: "kinetic energy decreases", why: "sound and heat carry energy away" },
       ] as const, r);
       const q = mkCorrect(`Momentum is conserved; ${kind.K}`, [
-        { text: "Momentum is conserved; kinetic energy is also conserved", tempt: "K conservation defines ELASTIC only — sticking or clanking loses K." },
+        { text: "Momentum is conserved only if the collision is elastic", tempt: "Momentum conservation needs no elasticity — internal forces cancel in pairs regardless. K conservation is what defines elastic." },
         { text: "Momentum decreases; kinetic energy is conserved", tempt: "Momentum is conserved whenever no external net force acts — internal forces cancel in pairs." },
         { text: "Neither momentum nor kinetic energy is conserved", tempt: "Momentum is the robust one here; K may drop, but p cannot." },
       ], r);
@@ -330,13 +330,14 @@ export const MOMENTUM: Archetype[] = [
       // leaves fragment 2 with speed such that vertical momenta cancel: fragment 1 has none.
       // So fragment 2 can have any vertical speed only if the SYSTEM had none — instead ask:
       // fragment 1 leaves at 30° above horizontal at speed v; find fragment 2's velocity components.
-      const px = (m / 2) * v * Math.cos(angle * Math.PI / 180);
-      const py1 = (m / 2) * v * Math.sin(angle * Math.PI / 180);
-      // Fragment 2 must carry px forward and −py1 downward:
-      const v2x = px / (m / 2) === v * Math.cos(angle * Math.PI / 180) ? v * Math.cos(angle * Math.PI / 180) : 0;
-      void v2x;
-      const v2y = py1 / (m / 2);
-      const v2 = Math.sqrt((v * Math.cos(angle * Math.PI / 180)) ** 2 + v2y ** 2);
+      const cos = Math.cos(angle * Math.PI / 180);
+      const sin = Math.sin(angle * Math.PI / 180);
+      const px1 = (m / 2) * v * cos;
+      const py1 = (m / 2) * v * sin;
+      // Fragment 2 must carry the REMAINING momentum: p2x = mv − p1x, p2y = −p1y.
+      const v2x = (m * v - px1) / (m / 2); // forward
+      const v2y = py1 / (m / 2);           // downward
+      const v2 = Math.hypot(v2x, v2y);
       const q = mkNum(v2, [
         { v: v2y, tempt: "That's only the vertical component — fragment 2 also carries the leftover horizontal momentum." },
         { v: v * Math.cos(angle * Math.PI / 180), tempt: "That's fragment 1's horizontal component, not fragment 2's speed." },
@@ -345,7 +346,7 @@ export const MOMENTUM: Archetype[] = [
       return {
         prompt: `A ${m} kg projectile moves at ${v} m/s when it explodes into two equal fragments. Fragment 1 (mass m/2) leaves at ${angle}° above the horizontal, still at speed ${v} m/s. What is the SPEED of fragment 2 immediately after the explosion?`,
         choices: q.choices, correct: q.correct, tempt: q.tempt,
-        explanation: `Before: p = ${fmt(m * v)} kg·m/s horizontal. Fragment 1 carries p₁ₓ = ${fmt(px, 2)}, p₁ᵧ = ${fmt(py1, 2)}. Fragment 2 must supply the rest: p₂ₓ = ${fmt(m * v - px, 2)} forward, p₂ᵧ = ${fmt(-py1, 2)} downward → |v₂| = √(vₓ² + vᵧ²) = ${fmt(v2)} m/s.`,
+        explanation: `Before: p = ${fmt(m * v)} kg·m/s forward, zero vertical momentum. Fragment 1 carries p₁ₓ = ${fmt(px1, 2)} forward and p₁ᵧ = ${fmt(py1, 2)} upward. Fragment 2 must carry the remainder: p₂ₓ = ${fmt(m * v - px1, 2)} forward and p₂ᵧ = ${fmt(-py1, 2)} (downward). Dividing by its mass m/2: v₂ₓ = v(2 − cosθ) = ${fmt(v2x, 2)} m/s, v₂ᵧ = v·sinθ = ${fmt(v2y, 2)} m/s → |v₂| = √(v₂ₓ² + v₂ᵧ²) = ${fmt(v2)} m/s.`,
         equations: ["\\Sigma p_{x,i} = \\Sigma p_{x,f}, \\quad \\Sigma p_{y,i} = \\Sigma p_{y,f}"],
         commonMistake: "Applying momentum conservation without separating x and y components.",
         apStrategy: "Explosions: conserve momentum component-by-component. Write both component equations before touching numbers.",
@@ -553,24 +554,23 @@ export const OSCILLATIONS: Archetype[] = [
     course: "cm", unit: 7, topic: "Oscillations", conceptId: "cm-shm-ode",
     difficulty: "medium", type: "graph",
     gen: (r): RawQ => {
-      const which = pick(["velocity is most negative", "acceleration is most positive", "speed is greatest"] as const, r);
+      const Q = pick([
+        { ask: "velocity", correct: "velocity is most negative (moving through equilibrium toward −A)", others: ["velocity is zero", "velocity is most positive (moving back toward +A)", "velocity has its maximum magnitude"] as const },
+        { ask: "acceleration", correct: "acceleration is zero (the spring is momentarily relaxed)", others: ["acceleration is most negative (pointing toward −A)", "acceleration is most positive (pointing toward +A)", "acceleration has its maximum magnitude"] as const },
+        { ask: "speed", correct: "speed is greatest (all the energy is kinetic at x = 0)", others: ["speed is zero", "speed is half its maximum", "speed is greatest at a quarter-period later, not now"] as const },
+      ] as const, r);
       return {
-        prompt: `A mass on a spring has position x(t) = A cos(ωt). At t = 0 it is at x = +A. A quarter period later (t = π/2ω), the mass's:`,
+        prompt: `A mass on a spring has position x(t) = A cos(ωt), released from rest at x = +A. A quarter period later (t = π/2ω), the mass's:`,
         diagram: { kind: "vgraph", graph: "xt", shape: "cosine", note: "x(t) = A cos(ωt)" },
-        choices: [
-          which === "velocity is most negative" ? "velocity is most negative" : "velocity is zero",
-          which === "acceleration is most positive" ? "acceleration is most positive" : "acceleration is most negative",
-          which === "speed is greatest" ? "speed is greatest" : "speed is zero",
-          "position is x = +A again",
-        ],
-        correct: which === "velocity is most negative" ? 0 : which === "acceleration is most positive" ? 0 : 0,
+        choices: [Q.others[0], Q.others[1], Q.correct, Q.others[2]],
+        correct: 2,
         tempt: [
           undefined,
           undefined,
           undefined,
-          "It returns to +A after a FULL period, not a quarter.",
+          "Trace the quarter cycle: extreme → center. Whatever the question asks, it happens AT the center pass, not later.",
         ],
-        explanation: "At t = π/2ω: x = 0 (passing through equilibrium moving negative), v = −Aω (fastest, negative), a = 0. The quarter-cycle maps extreme → center: all K, no U, max speed.",
+        explanation: `At t = π/2ω: x = 0 (passing through equilibrium moving negative), v = −Aω (fastest, negative), a = 0. The quarter-cycle maps extreme → center: all K, no U, max speed. The correct statement is about the ${Q.ask}.`,
         equations: ["x = A\\cos(\\omega t), \\; v = -A\\omega\\sin(\\omega t), \\; a = -A\\omega^2\\cos(\\omega t)"],
         commonMistake: "Mixing up which quantity is maximal at the extremes vs the center.",
         apStrategy: "Trace the quarter-cycle: extreme → center means U→K, v max, a zero. One quarter more: center → opposite extreme.",
@@ -640,7 +640,7 @@ export const FLUIDS: Archetype[] = [
     difficulty: "hard", type: "conceptual",
     gen: (r): RawQ => {
       const q = mkCorrect("Speed is higher and pressure is lower", [
-        { text: "Speed is higher and pressure is higher", tempt: undefined as unknown as string },
+        { text: "Speed is higher and pressure is higher", tempt: "Continuity raises the speed in the narrow section; Bernoulli then DROPS the pressure to keep ½ρv² + P constant — the two can't rise together." },
         { text: "Speed is lower and pressure is higher", tempt: "Continuity forces speed UP in the narrow section — A₁v₁ = A₂v₂." },
         { text: "Speed is higher and pressure is unchanged", tempt: "Faster flow needs a pressure PUSH to accelerate it — and Bernoulli keeps the total constant: faster means lower P." },
       ], r);

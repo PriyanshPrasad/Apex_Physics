@@ -29,7 +29,7 @@ export const CALC: Archetype[] = [
         correct: 0,
         tempt: [
           undefined,
-          "Those are x(t) and its average slope — differentiate BEFORE substituting.",
+          "Those are x(t) at t and its average slope over 0→t — the instantaneous velocity needs the DERIVATIVE evaluated at t.",
           "Off by leftover terms — check each differentiation step.",
           "You differentiated only part way — v needs both terms, a needs both.",
         ],
@@ -128,7 +128,7 @@ export const CALC: Archetype[] = [
         correct: 0,
         tempt: [
           undefined,
-          undefined,
+          `That's the force's magnitude with the sign misread — F = −dU/dx = −${2 * A}x, which is negative at positive x: the force points in −x.`,
           "The minus sign in F = −dU/dx matters: the force points DOWNHILL on the U landscape, toward smaller U.",
           "U's sign says nothing about force — the SLOPE of U does.",
         ],

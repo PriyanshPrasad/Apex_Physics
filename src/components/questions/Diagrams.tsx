@@ -3,7 +3,7 @@
 import { M } from "@/components/math/Math";
 
 export type DiagramSpec =
-  | { kind: "vgraph"; graph: "xt" | "vt" | "at"; shape: string; note?: string }
+  | { kind: "vgraph"; graph: "xt" | "vt" | "at" | "ut"; shape: string; note?: string }
   | { kind: "fbd"; scene: "incline" | "table" | "hanging"; labels: string[] }
   | { kind: "circuit"; layout?: "series2" | "parallel2" | "rcMeter" | "batteryCapacitor"; labels?: string[]; note?: string }
   | { kind: "charges"; q: ("+" | "-")[]; note?: string }
@@ -12,7 +12,10 @@ export type DiagramSpec =
   | { kind: "bars"; bars: { label: string; frac: number; color?: string }[]; note?: string }
   | { kind: "collision"; m1: number; v1: number; m2: number; v2: number; note?: string }
   | { kind: "piston"; temp: number; vol: number; note?: string }
-  | { kind: "orbits"; r1: number; r2: number; note?: string };
+  | { kind: "orbits"; r1: number; r2: number; note?: string }
+  | { kind: "pv"; points: [number, number][]; labels?: string[]; note?: string }
+  | { kind: "table"; headers: string[]; rows: string[][]; note?: string }
+  | { kind: "track"; marks: number[]; note?: string };
 
 const INK = "#3c3752";
 const MUTED = "#7c7697";
@@ -57,6 +60,9 @@ function GraphPath(shape: string, graph: string): [number, number][] {
       case "parabolic-down": v = 0.92 - 0.84 * u * u; break;
       case "sine-up": v = 0.5 - 0.42 * Math.cos(u * Math.PI * 1.2); break;
       case "sine-down": v = 0.5 + 0.42 * Math.cos(u * Math.PI * 1.2); break;
+      case "cosine": v = 0.5 + 0.42 * Math.cos(u * Math.PI * 2); break;
+      case "well": v = 0.12 + 0.76 * (2 * u - 1) * (2 * u - 1); break;
+      case "double-well": v = 0.15 + 0.7 * Math.abs(Math.cos(u * Math.PI * 2)); break;
       case "v-shape": v = u < 0.5 ? 0.9 - 1.5 * u : 0.15 + 1.5 * (u - 0.5); break;
       case "triangle": v = u < 0.5 ? 0.9 - 1.5 * u : 0.9 - 1.5 * (1 - u); break;
       default: v = 0.5;
@@ -70,7 +76,8 @@ function GraphPath(shape: string, graph: string): [number, number][] {
 function VGraph({ graph, shape, note }: { graph: string; shape: string; note?: string }) {
   const w = 340, h = 190, px = 44, py = 24, gw = w - px - 22, gh = h - py - 34;
   const pts = GraphPath(shape, graph);
-  const label = graph === "xt" ? "position x (m)" : graph === "vt" ? "velocity v (m/s)" : "acceleration a (m/s²)";
+  const label = graph === "xt" ? "position x (m)" : graph === "vt" ? "velocity v (m/s)" : graph === "ut" ? "energy U (J)" : "acceleration a (m/s²)";
+  const xlabel = graph === "ut" ? "position x (m)" : "time t (s)";
   return (
     <Frame w={w} h={h}>
       <rect x={px} y={py} width={gw} height={gh} fill="none" stroke={MUTED} strokeWidth="1" opacity="0.5" />
@@ -82,7 +89,7 @@ function VGraph({ graph, shape, note }: { graph: string; shape: string; note?: s
         fill="none" stroke={VIOLET} strokeWidth="2.5"
       />
       <text x={px + gw} y={py - 8} textAnchor="end" fontSize="10" fill={MUTED}>{label}</text>
-      <text x={px + gw / 2} y={h - 8} textAnchor="middle" fontSize="10" fill={MUTED}>time t (s)</text>
+      <text x={px + gw / 2} y={h - 8} textAnchor="middle" fontSize="10" fill={MUTED}>{xlabel}</text>
       <text x={px - 6} y={py + 8} textAnchor="end" fontSize="9" fill={MUTED}>+</text>
       <text x={px - 6} y={py + gh} textAnchor="end" fontSize="9" fill={MUTED}>0</text>
       {note && <text x={w - 8} y={py + 12} textAnchor="end" fontSize="10" fill={GOLD} fontWeight="bold">{note}</text>}
@@ -393,6 +400,86 @@ function OrbitsDiag({ r1, r2, note }: { r1: number; r2: number; note?: string })
   );
 }
 
+// ---------- P–V diagram (thermo) ----------
+function PvDiag({ points, labels, note }: { points: [number, number][]; labels?: string[]; note?: string }) {
+  const w = 340, h = 190, px = 46, py = 26, gw = w - px - 34, gh = h - py - 42;
+  const X = (v: number) => px + v * gw;
+  const Y = (p: number) => py + (1 - p) * gh;
+  return (
+    <Frame w={w} h={h}>
+      <line x1={px} y1={py + gh} x2={px + gw + 14} y2={py + gh} stroke={MUTED} strokeWidth="1.2" />
+      <line x1={px} y1={py + gh} x2={px} y2={py - 10} stroke={MUTED} strokeWidth="1.2" />
+      <text x={px + gw + 16} y={py + gh + 4} fontSize="10" fill={MUTED}>V</text>
+      <text x={px - 24} y={py - 6} fontSize="10" fill={MUTED}>P</text>
+      {points.map((pt, i) => {
+        const next = points[(i + 1) % points.length];
+        return (
+          <Arrow
+            key={`s${i}`}
+            x1={X(pt[0])} y1={Y(pt[1])}
+            x2={X(pt[0]) + (X(next[0]) - X(pt[0])) * 0.94}
+            y2={Y(pt[1]) + (Y(next[1]) - Y(pt[1])) * 0.94}
+            color={VIOLET} width={2}
+          />
+        );
+      })}
+      {points.map((pt, i) => (
+        <g key={`p${i}`}>
+          <circle cx={X(pt[0])} cy={Y(pt[1])} r={3.5} fill={PINK} />
+          <text x={X(pt[0]) + 7} y={Y(pt[1]) - 6} fontSize="10" fill={INK} fontWeight="bold">{labels?.[i] ?? String.fromCharCode(65 + i)}</text>
+        </g>
+      ))}
+      {note && <text x={w - 10} y={py + 8} textAnchor="end" fontSize="10" fill={GOLD} fontWeight="bold">{note}</text>}
+    </Frame>
+  );
+}
+
+// ---------- data table (stimulus sets / experiments) ----------
+function TableDiag({ headers, rows, note }: { headers: string[]; rows: string[][]; note?: string }) {
+  const w = 340, h = 190, left = 22, top = 32;
+  const n = Math.max(1, headers.length);
+  const colW = (w - 2 * left) / n;
+  const rowH = Math.max(16, Math.min(24, 118 / (rows.length + 1)));
+  return (
+    <Frame w={w} h={h}>
+      {headers.map((hd, j) => (
+        <text key={`h${j}`} x={left + colW * j + colW / 2} y={top + 8} textAnchor="middle" fontSize="10.5" fill={INK} fontWeight="bold">{hd}</text>
+      ))}
+      <line x1={left} y1={top + 15} x2={left + colW * n} y2={top + 15} stroke={MUTED} strokeWidth="1" />
+      {rows.map((row, i) =>
+        row.map((cell, j) => (
+          <text key={`${i}-${j}`} x={left + colW * j + colW / 2} y={top + 15 + rowH * (i + 1) - 5} textAnchor="middle" fontSize="10" fill="#5a5474">{cell}</text>
+        )),
+      )}
+      {note && <text x={w / 2} y={h - 10} textAnchor="middle" fontSize="10" fill={GOLD} fontWeight="bold">{note}</text>}
+    </Frame>
+  );
+}
+
+// ---------- measurement track (stimulus sets) ----------
+function TrackDiag({ marks, note }: { marks: number[]; note?: string }) {
+  const y = 104, x0 = 40, x1 = 300;
+  const mMin = Math.min(...marks), mMax = Math.max(...marks);
+  const X = (m: number) => x0 + ((m - mMin) / Math.max(0.001, mMax - mMin)) * (x1 - x0);
+  const cartX = X(marks[Math.min(marks.length - 1, Math.floor(marks.length / 2))]);
+  return (
+    <Frame>
+      <line x1={x0} y1={y} x2={x1} y2={y} stroke={INK} strokeWidth="2.5" />
+      {marks.map((m, i) => (
+        <g key={i}>
+          <line x1={X(m)} y1={y - 7} x2={X(m)} y2={y + 7} stroke={MUTED} strokeWidth="1.5" />
+          <text x={X(m)} y={y + 22} textAnchor="middle" fontSize="9" fill={MUTED}>{m} m</text>
+        </g>
+      ))}
+      <rect x={cartX - 17} y={y - 30} width={34} height={19} rx={5} fill={VIOLET} opacity="0.92" />
+      <circle cx={cartX - 9} cy={y - 9} r={3} fill={INK} />
+      <circle cx={cartX + 9} cy={y - 9} r={3} fill={INK} />
+      <text x={170} y={44} textAnchor="middle" fontSize="10" fill={VIOLET} fontWeight="bold">cart (motion along track)</text>
+      {note && <text x={170} y={172} textAnchor="middle" fontSize="10" fill={GOLD} fontWeight="bold">{note}</text>}
+    </Frame>
+  );
+}
+
 export function QDiagram({ spec }: { spec: DiagramSpec }) {
   switch (spec.kind) {
     case "vgraph": return <VGraph graph={spec.graph} shape={spec.shape} note={spec.note} />;
@@ -405,6 +492,9 @@ export function QDiagram({ spec }: { spec: DiagramSpec }) {
     case "collision": return <CollisionDiag m1={spec.m1} v1={spec.v1} m2={spec.m2} v2={spec.v2} note={spec.note} />;
     case "piston": return <Piston temp={spec.temp} vol={spec.vol} note={spec.note} />;
     case "orbits": return <OrbitsDiag r1={spec.r1} r2={spec.r2} note={spec.note} />;
+    case "pv": return <PvDiag points={spec.points} labels={spec.labels} note={spec.note} />;
+    case "table": return <TableDiag headers={spec.headers} rows={spec.rows} note={spec.note} />;
+    case "track": return <TrackDiag marks={spec.marks} note={spec.note} />;
     default: return null;
   }
 }

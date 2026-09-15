@@ -8,12 +8,11 @@ export const EM: Archetype[] = [
   {
     id: "em-field-vec",
     course: "p2", unit: 10, topic: "Electric Fields", conceptId: "p2-e-field",
-    difficulty: "medium", type: "vector" as never,
+    difficulty: "medium", type: "conceptual",
     gen: (r): RawQ => {
-      const n = pick([2, 3, 4] as const, r);
-      void n;
+      const obj = pick(["a proton", "an electron", "a small charged bead", "a dust grain carrying charge"] as const, r);
       return {
-        prompt: `A charge q is placed in a uniform electric field and experiences force F. If the field is reversed in direction AND the charge is doubled, the new force is:`,
+        prompt: `A charged object (${obj}) sits in a uniform electric field and experiences force F. If the field is reversed in direction AND the charge is doubled, the new force on the object is:`,
         choices: ["2F, opposite direction", "2F, same direction", "unchanged", "F/2, opposite direction"],
         correct: 0,
         tempt: [
@@ -35,11 +34,8 @@ export const EM: Archetype[] = [
     course: "p2", unit: 10, topic: "Electric Fields", conceptId: "p2-e-field",
     difficulty: "hard", type: "quantitative",
     gen: (r): RawQ => {
-      const d = pick([1, 2, 4] as const, r);
-      const q = pick([1, 4, 9] as const, r);
-      // Two equal charges q, separation d. Field at midpoint from each adds for
-      // like charges (they point opposite ways) → zero; for opposite charges → double.
       const like = r() < 0.5;
+      const d = pick([1, 2, 4] as const, r);
       const K = 8.99e9;
       const qq = 1e-6, dd = 0.1 * d;
       const each = (K * qq) / (dd * dd);
@@ -69,7 +65,6 @@ export const EM: Archetype[] = [
         apStrategy: "Draw the individual field vectors first, THEN add them. Symmetry arguments come from the drawing, not the formula.",
         category: "vector" as const,
       };
-      void q; void d;
       return q0;
     },
   },
@@ -385,7 +380,7 @@ export const EM: Archetype[] = [
           undefined,
           "Intensity is photon RATE, not photon energy — K_max depends on frequency alone.",
           "Intensity can't raise K_max — each electron absorbs exactly one photon's worth of energy.",
-          undefined,
+          "Dimmer light ejects FEWER electrons per second, not more — and K_max still wouldn't budge.",
         ],
         explanation: "Doubling intensity doubles the photon rate → more electrons per second. But each photon still carries hf, so K_max = hf − φ is unchanged. Brighter light ≠ more energetic light.",
         equations: ["K_{max} = hf - \\phi"],

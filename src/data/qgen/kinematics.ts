@@ -13,8 +13,9 @@ export const KINEMATICS: Archetype[] = [
     gen: (r) => {
       const shape = pick(["linear-up", "flat", "linear-down", "parabolic-up"] as const, r) as GraphShape;
       const obj = pick(SCENARIOS.mover, r);
+      const vDesc = shape === "parabolic-up" ? "curves upward, steepening as time passes" : shapeWord(shape, true);
       const q: RawQ = {
-        prompt: `A velocity–time graph for ${obj} rolling along a straight track is shown. The v(t) graph ${shapeWord(shape, true)}. Which describes the position–time graph?`,
+        prompt: `A velocity–time graph for ${obj} rolling along a straight track is shown. The v(t) graph ${vDesc}. Which describes the position–time graph?`,
         diagram: { kind: "vgraph", graph: "vt", shape },
         choices: [] as string[], correct: 0,
         explanation: "",
@@ -30,7 +31,7 @@ export const KINEMATICS: Archetype[] = [
       } else if (shape === "linear-up") {
         q.choices = ["A horizontal line", "A straight line with constant slope", "An upward-curving (parabolic) line", "A downward-curving line"];
         q.correct = 2;
-        q.explanation = "Linearly growing v means growing x-slope: x(t) curves upward, quadratic in time.";
+        q.explanation = "v rises linearly from zero: the x-slope grows linearly in time — x(t) is the quadratic curve that steepens steadily. A straight line would need constant v.";
       } else if (shape === "linear-down") {
         q.choices = ["A parabola opening upward", "A line with constant negative slope", "A curve that flattens as it climbs", "A horizontal line"];
         q.correct = 1;
@@ -38,7 +39,7 @@ export const KINEMATICS: Archetype[] = [
       } else {
         q.choices = ["A straight line", "A horizontal line", "A curve that steepens steadily (quadratic rise)", "A curve that flattens as time goes on"];
         q.correct = 2;
-        q.explanation = "v growing linearly from zero is the signature of constant acceleration from rest — x(t) is quadratic, steepening forever.";
+        q.explanation = "v(t) curves upward and steepens, so the x-slope steepens ever faster: x(t) climbs in a curve that steepens steadily (at least quadratic). No straight line can work — a straight x(t) would need CONSTANT v, and v here keeps changing.";
       }
       return q;
     },
@@ -101,11 +102,9 @@ export const KINEMATICS: Archetype[] = [
       const factor = pick([2, 3, 4] as const, r);
       const obj = pick(SCENARIOS.mover, r);
       const askRange = r() < 0.5;
-      const power = askRange ? 2 : 2;
-      const answerTxt = askRange ? `${factor ** power}×` : `${factor ** power}×`;
       return {
         prompt: `${obj[0].toUpperCase() + obj.slice(1)} is launched at 45° over level ground. If the launch speed is made ${factor}× larger, the ${askRange ? "range" : "maximum height"} becomes:`,
-        choices: [`${factor}×`, `${factor ** power}×`, `${factor ** 3}×`, `\\sqrt{${factor}}×`],
+        choices: [`${factor}×`, `${factor ** 2}×`, `${factor ** 3}×`, `\\sqrt{${factor}}×`],
         correct: 1,
         tempt: [
           askRange ? "Range scales with v₀², not v₀ — scan the equation for the exponent." : "Height scales with v₀², not v₀.",
@@ -113,7 +112,7 @@ export const KINEMATICS: Archetype[] = [
           "That's v₀ cubed — check the exponent in the formula again.",
           "The square root goes the wrong way — quantities scaling with v₀² grow faster than v.",
         ],
-        explanation: `Both range (R = v₀²sin2θ/g) and height (H = v₀²sin²θ/2g) scale with v₀². ${factor}× the speed → ${factor ** power}× the ${askRange ? "range" : "height"}.`,
+        explanation: `Both range (R = v₀²sin2θ/g) and height (H = v₀²sin²θ/2g) scale with v₀². ${factor}× the speed → ${factor ** 2}× the ${askRange ? "range" : "height"}.`,
         equations: ["R = \\frac{v_0^2 \\sin 2\\theta}{g}, \\quad H = \\frac{v_0^2\\sin^2\\theta}{2g}"],
         commonMistake: "Assuming a linear relationship without checking the exponent.",
         apStrategy: "Proportional-reasoning questions are solved by finding the exponent — zero arithmetic needed.",
@@ -263,18 +262,18 @@ export const KINEMATICS: Archetype[] = [
     gen: (r) => {
       const a = ri(2, 5, r);
       const rows = [1, 2, 3, 4].map((n) => ({ t: n, x: 0.5 * a * n * n }));
-      const table = `t (s): ${rows.map((x) => x.t).join(", ")}\\nΔx (m): ${rows.map((x) => fmt(x.x)).join(", ")}`;
+      const table = `t (s):   ${rows.map((x) => x.t).join(", ")}\n\u0394x (m): ${rows.map((x) => fmt(x.x)).join(", ")}`;
       return {
         prompt: `A student measures the position of a cart from rest at 1 s intervals:\n\n${table}\n\nWhat is the cart's acceleration?`,
         choices: [`${a} m/s²`, `${2 * a} m/s²`, `${a / 2} m/s²`, `${a * a} m/s²`],
         correct: 0,
         tempt: [
           undefined,
-          "You compared consecutive differences (Δ²x pattern) — the acceleration is twice the second-difference when using 1 s steps... check the fit again: x = ½at² gives a = 2×(second difference) — but the second differences here are 2a per... recompute carefully.",
-          "That's the ½ factor leaking out — ½a is the coefficient of t².",
+          "Compare SECOND differences, not first: with x = ½at², consecutive Δx values grow by a·(Δt)² each step. The growth per step here is a·1² — extract it, don't eyeball the ratio.",
+          "That's the ½ factor leaking out — ½a is the coefficient of t², so a is twice the coefficient you fitted.",
           "Units: acceleration can't come out in m²/s⁴ — check your algebra.",
         ],
-        explanation: `x = ½at². Testing: x(1) = ${fmt(rows[0].x)} = ½a → a = ${2 * rows[0].x}; x(2) = ${fmt(rows[1].x)} = ½a(4) → a = ${fmt(rows[1].x / 2)}. Consistent: a = ${a} m/s².`,
+        explanation: `x = ½at². From the data: x(1) = ${fmt(rows[0].x)} m = ½a(1²) → a = ${fmt(2 * rows[0].x)} m/s²; x(2) = ${fmt(rows[1].x)} m = ½a(2²) → a = ${fmt(rows[1].x / 2)} m/s². Consistent: a = ${a} m/s². (Equivalently: successive second differences equal a·Δt² = ${a}.)`,
         equations: ["x = \\tfrac12 at^2"],
         commonMistake: "Misreading the ½ factor when extracting a from the coefficient of t².",
         apStrategy: "Fit data to the model's FORM: for x ∝ t², plot x vs t² and take the slope = ½a.",
@@ -326,10 +325,10 @@ export const KINEMATICS: Archetype[] = [
         tempt: [
           "Crossing v-lines mean equal velocities — positions require AREA comparison, which differs here.",
           undefined,
-          "Cart X's acceleration is nonzero; cart Y's is zero — their slopes differ.",
+          `Cart X's acceleration is ${a1} m/s² while cart Y's is zero — their slopes are nothing alike.`,
           "Displacement = area under v–t up to that time; the areas are different.",
         ],
-        explanation: "Crossing graphs = equal values AT that instant: same velocity. Nothing about position (areas) or acceleration (slopes) matches — both differ.",
+        explanation: "Crossing graphs = equal values AT that instant: same velocity. Nothing about position (areas) or acceleration (slopes) matches — both differ here.",
         equations: ["\\text{intersection: } v_X(t) = v_Y(t)"],
         commonMistake: "Reading more into a graph intersection than 'equal value at that instant'.",
         apStrategy: "For two-object graph questions, ask what's equal (values), what's not (slopes, areas), and in which quantity the asked variable lives.",

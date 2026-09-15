@@ -14,7 +14,11 @@ import { ENERGY, MOMENTUM, ROTATION, OSCILLATIONS, FLUIDS } from "@/data/qgen/en
 import { EM } from "@/data/qgen/em";
 import { CALC } from "@/data/qgen/calc";
 import { RC } from "@/data/qgen/rc";
+import { THERMO } from "@/data/qgen/thermo";
 import type { Difficulty, QuestionType } from "@/data/qgen/core";
+import type { StimulusSpec, StimulusRender } from "@/data/qgen/core";
+export type { StimulusSpec, StimulusRender } from "@/data/qgen/core";
+import { stimRender, type RawQ } from "@/data/qgen/core";
 
 export type { Difficulty, QuestionType, BankQuestion, BankFilters };
 export { DIFFICULTY_LABELS, DIFFICULTY_ORDER, SKILL_LABELS } from "@/data/qgen/core";
@@ -25,7 +29,7 @@ import { DIFFICULTY_LABELS, DIFFICULTY_ORDER, SKILL_LABELS } from "@/data/qgen/c
 // with distinct seeds. This is the "expansion engine" — adding
 // more archetypes or raising VARIANT_DEPTH grows the bank.
 // ------------------------------------------------------------
-export const VARIANT_DEPTH = 10; // variants materialized per archetype
+export const VARIANT_DEPTH = 18; // variants materialized per archetype
 
 const ARCHETYPES = [
   ...KINEMATICS,
@@ -38,6 +42,7 @@ const ARCHETYPES = [
   ...EM,
   ...CALC,
   ...RC,
+  ...THERMO,
 ];
 
 export const ARCHETYPE_COUNT = ARCHETYPES.length;
@@ -69,6 +74,35 @@ export interface QEntry extends BankQuestion {
   archetypeId?: string;
   variantSeed?: number;
   tempt?: (string | undefined)[];
+  /** AP-style stimulus (shared scenario) rendered above the prompt when present. */
+  stimulusRender?: StimulusRender;
+}
+
+// ------------------------------------------------------------
+// Quality control — every generated question must pass before
+// it is allowed into the bank. Broken questions are dropped and
+// logged rather than silently served to students.
+// ------------------------------------------------------------
+function validateRaw(archId: string, raw: RawQ): string | null {
+  if (!raw || typeof raw !== "object") return "not an object";
+  if (typeof raw.prompt !== "string" || raw.prompt.trim().length < 15) return "prompt missing/too short";
+  if (raw.prompt.includes("undefined") || raw.prompt.includes("[object")) return "prompt contains 'undefined' or '[object]'";
+  if (raw.prompt.includes("\\n")) return "prompt contains literal backslash-n";
+  if (!Array.isArray(raw.choices) || raw.choices.length !== 4) return "must have exactly 4 choices";
+  for (const c of raw.choices) {
+    if (typeof c !== "string" || c.trim().length === 0) return "empty choice text";
+    if (c.includes("undefined") || c.includes("[object") || c.includes("NaN")) return `choice contains 'undefined'/NaN: "${c.slice(0, 40)}"`;
+  }
+  const uniq = new Set(raw.choices.map((c) => c.trim()));
+  if (uniq.size !== 4) return "duplicate choice text";
+  if (!Number.isInteger(raw.correct) || raw.correct < 0 || raw.correct > 3) return "correct index out of range";
+  if (typeof raw.explanation !== "string" || raw.explanation.trim().length < 20) return "explanation missing/too short";
+  if (raw.explanation.includes("undefined") || raw.explanation.includes("NaN")) return "explanation contains 'undefined'/NaN";
+  if (raw.tempt) {
+    if (!Array.isArray(raw.tempt) || raw.tempt.length !== 4) return "tempt must align with 4 choices";
+    if (typeof raw.tempt[raw.correct] !== "undefined") return "tempt set for the CORRECT choice";
+  }
+  return null;
 }
 
 let cache: QEntry[] | null = null;
@@ -76,6 +110,7 @@ let cache: QEntry[] | null = null;
 export function getBank(): QEntry[] {
   if (cache) return cache;
   const out: QEntry[] = BANK.map((q) => ({ ...q, source: "hand" as const }));
+  const seenPrompts = new Set(out.map((q) => q.prompt.trim()));
   for (const arch of ARCHETYPES) {
     for (let v = 0; v < VARIANT_DEPTH; v++) {
       const seed = hashSeed(`${arch.id}#${v}`);
@@ -88,8 +123,33 @@ export function getBank(): QEntry[] {
         console.error(`Archetype ${arch.id} variant ${v} failed to generate`, err);
         continue;
       }
-      // validate: 4 choices, correct in range, explanation present
-      if (!raw || raw.choices.length !== 4 || raw.correct < 0 || raw.correct > 3 || !raw.explanation) continue;
+      if (!raw) continue;
+      const fail = validateRaw(arch.id, raw);
+      if (fail) {
+        console.warn(`[qbank] dropped ${arch.id}-v${v}: ${fail}`);
+        continue;
+      }
+      // exact-duplicate prompt guard (archetype produced a fixed question)
+      const pKey = raw.prompt.trim();
+      if (seenPrompts.has(pKey)) {
+        console.warn(`[qbank] dropped ${arch.id}-v${v}: duplicate of an existing question`);
+        continue;
+      }
+      seenPrompts.add(pKey);
+      // stimulus-set seeding: members of a shared set get the SAME stimulus
+      // (and scenario numbers where the archetype reads the same rng stream)
+      const setSeed = arch.shared ? hashSeed(`${arch.shared}#${v}`) : seed;
+      let stimSpec: StimulusSpec | undefined = raw.stimulus;
+      if (arch.shared) {
+        // regenerate the set's stimulus deterministically from the shared seed
+        const sr = mulberry32(setSeed);
+        try {
+          const probe = arch.gen(sr);
+          if (probe?.stimulus) stimSpec = probe.stimulus;
+        } catch {
+          /* stimulus probe failure → fall back to raw's own stimulus */
+        }
+      }
       out.push({
         id: `${arch.id}-v${v}`,
         course: arch.course,
@@ -110,8 +170,9 @@ export function getBank(): QEntry[] {
         category: raw.category,
         source: "gen",
         archetypeId: arch.id,
-        variantSeed: seed,
+        variantSeed: setSeed,
         tempt: raw.tempt,
+        stimulusRender: stimSpec ? stimRender(stimSpec) : undefined,
       });
     }
   }

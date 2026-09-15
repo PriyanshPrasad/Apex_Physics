@@ -57,8 +57,8 @@ export const DYNAMICS: Archetype[] = [
       return {
         prompt: `A ${mass} kg ${obj} rests on a ramp at ${theta}°. The coefficient of static friction is ${muS} (kinetic is lower). What happens, and what is the acceleration along the ramp?`,
         choices: slides
-          ? [`It stays put; a = 0`, `It slides; a ≈ ${fmt(a, 1)} m/s² down the ramp`, `It slides; a ≈ ${fmt(G * Math.sin(rad), 1)} m/s²`, `It slides; a ≈ ${fmt(G * muS * Math.cos(rad), 1)} m/s²`]
-          : [`It stays put; a = 0`, `It slides; a ≈ ${fmt(a, 1)} m/s²`, `It slides; a ≈ ${fmt(G * Math.sin(rad) - muS * G, 1)} m/s²`, `It slides; a = ${fmt(G * Math.sin(rad), 1)} m/s²`],
+          ? [`It stays put; a = 0`, `It slides; a ≈ ${fmt(a, 1)} m/s² down the ramp`, `It slides; a ≈ ${fmt(G * Math.sin(rad), 1)} m/s²`, `It slides; a ≈ ${fmt(G * (Math.sin(rad) - muS * Math.cos(rad)) * 2, 1)} m/s²`]
+          : [`It stays put; a = 0`, `It slides; a ≈ ${fmt(a, 1)} m/s²`, `It slides; a ≈ ${fmt(G * Math.sin(rad) - muS * G, 1)} m/s²`, `It slides; a ≈ ${fmt((G * Math.sin(rad) - muS * G * Math.cos(rad)) / 2, 1)} m/s²`],
         correct: 0,
         tempt: [
           undefined,
@@ -97,7 +97,7 @@ export const DYNAMICS: Archetype[] = [
         tempt: [
           undefined,
           "That is the true weight \u2014 but the scale reads the NORMAL force, which responds to acceleration.",
-          "That is the apparent weight for the opposite acceleration direction.",
+          "That is the apparent weight for the OPPOSITE acceleration — recheck whether the elevator speeds up or slows down, and in which direction.",
           "That is ma alone \u2014 gravity still acts. N = m(g \u00b1 a).",
         ],
         explanation: `\u03a3F = ma vertically: N = ${fmt(N, 0)} N for this acceleration. ${N > m * G ? "N > mg: the passenger feels heavier." : N < m * G ? "N < mg: feels lighter." : "Constant velocity \u2192 N = mg exactly."}`,

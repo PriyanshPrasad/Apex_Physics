@@ -32,9 +32,38 @@ export const SKILL_LABELS: Record<QuestionType, string> = {
 
 export type Rng = () => number;
 
+// ---------------- stimulus-based question sets ----------------
+// A stimulus is shared raw material (diagram + data + scenario blurb) shown
+// once, with several questions asked about it — the AP "question pair/set"
+// format. Archetypes that belong to the same set declare the same `shared`
+// key; the engine then seeds them identically per variant index, so every
+// member of the family describes the SAME scenario for a given variant.
+export type StimulusSpec =
+  | { kind: "track"; marks: number[]; blurb: string; note?: string }
+  | { kind: "table"; headers: string[]; rows: string[][]; blurb: string; note?: string }
+  | { kind: "pv"; points: [number, number][]; blurb: string; note?: string }
+  | { kind: "diagram"; diagram: DiagramSpec; blurb: string };
+
+export interface StimulusRender {
+  diagram?: DiagramSpec;
+  table?: { headers: string[]; rows: string[][] };
+  blurb: string;
+  note?: string;
+}
+
+export function stimRender(s: StimulusSpec): StimulusRender {
+  switch (s.kind) {
+    case "track": return { diagram: { kind: "track", marks: s.marks, note: s.note }, blurb: s.blurb, note: s.note };
+    case "table": return { table: { headers: s.headers, rows: s.rows }, blurb: s.blurb, note: s.note };
+    case "pv": return { diagram: { kind: "pv", points: s.points, note: s.note }, blurb: s.blurb, note: s.note };
+    case "diagram": return { diagram: s.diagram, blurb: s.blurb };
+  }
+}
+
 export interface RawQ {
   prompt: string;
   diagram?: DiagramSpec;
+  stimulus?: StimulusSpec;
   choices: string[];
   correct: number;
   /** per-choice "why this distractor is tempting" (index-aligned; undefined for correct) */
@@ -55,6 +84,10 @@ export interface Archetype {
   difficulty: Difficulty;
   type: QuestionType;
   skill?: string;
+  /** Stimulus-set membership: archetypes sharing this key describe the same scenario per variant. */
+  shared?: string;
+  /** Stimulus shown above the prompt (shared across the set; regenerated per variant). */
+  stimulus?: StimulusSpec;
   gen: (r: Rng) => RawQ;
 }
 
