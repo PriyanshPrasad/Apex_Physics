@@ -3,7 +3,7 @@ import { Link, NavLink, Outlet } from "react-router";
 import {
   LayoutDashboard, BookOpen, Dumbbell, FlaskConical, Map as MapIcon,
   Sigma, TriangleAlert, TrendingUp, ClipboardList, Search, Sun, Moon,
-  Blocks, Scale, LogOut, Atom,
+  Blocks, Scale, LogOut, Atom, Ruler,
 } from "lucide-react";
 import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
 import { searchCurriculum, COURSES } from "@/data/curriculum";
@@ -20,6 +20,7 @@ const NAV = [
   { to: "/sims", label: "Simulations", icon: Atom },
   { to: "/map", label: "Knowledge Map", icon: MapIcon },
   { to: "/equations", label: "Equation Library", icon: Sigma },
+  { to: "/units", label: "Units & Dimensions", icon: Ruler },
   { to: "/mistakes", label: "Mistakes", icon: TriangleAlert },
   { to: "/progress", label: "Progress", icon: TrendingUp },
   { to: "/compare", label: "Compare Courses", icon: Scale },
@@ -170,6 +171,22 @@ export default function AppShell() {
             🔥 {p.streak} day streak
           </span>
         </header>
+        {/* Mobile nav — the sidebar is desktop-only, so phones need their own path in */}
+        <nav className="scrollbar-none sticky top-[60px] z-10 flex gap-1.5 overflow-x-auto bg-background/80 px-4 py-2 backdrop-blur md:hidden">
+          {NAV.map(({ to, label }) => (
+            <NavLink
+              key={to}
+              to={to}
+              className={({ isActive }) =>
+                `shrink-0 rounded-full px-3.5 py-1.5 text-xs font-bold ${
+                  isActive ? "bg-[var(--clay-primary-tint)] text-[var(--clay-primary-deep)]" : "bg-clay-2 text-muted-foreground"
+                }`
+              }
+            >
+              {label}
+            </NavLink>
+          ))}
+        </nav>
         <main className="px-4 pb-16 md:px-8">
           <Outlet />
         </main>

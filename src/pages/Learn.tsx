@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Link, useParams } from "react-router";
-import { ChevronRight, Check, CircleDashed, Route } from "lucide-react";
+import { ChevronRight, Check, CircleDashed, Route, Globe } from "lucide-react";
 import { COURSES, COURSE_MAP, UNITS_BY_COURSE, CONCEPT_MAP, CURRICULUM_VERSION, type CourseId } from "@/data/curriculum";
 import { useProgress, masteryOf } from "@/lib/progress";
 import { cn } from "@/lib/utils";
@@ -88,6 +88,21 @@ export function CoursePage() {
                 );
               })}
             </div>
+            {u.realWorld && (
+              <div className="clay-tint mt-4 p-4">
+                <p className="flex items-center gap-1.5 text-xs font-extrabold uppercase tracking-wide">
+                  <Globe className="size-3.5" /> Physics in the wild
+                </p>
+                <div className="mt-2 grid gap-2 sm:grid-cols-2">
+                  {u.realWorld.map((r) => (
+                    <div key={r.title} className="text-xs">
+                      <p className="font-extrabold">{r.title}</p>
+                      <p className="mt-0.5 leading-5 text-muted-foreground">{r.text}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         ))}
       </div>

@@ -64,27 +64,52 @@ export interface Unit {
   name: string;
   blurb: string;
   conceptIds: string[];
+  realWorld?: { title: string; text: string }[];
 }
 
 export const UNITS: Unit[] = [
   // ---------- AP Physics 1 ----------
-  { id: "p1u1", course: "p1", num: 1, name: "Kinematics", blurb: "Describing motion: position, velocity, acceleration, graphs, vectors, projectiles.", conceptIds: ["p1-vectors", "p1-kinematics", "p1-motion-graphs", "p1-projectiles"] },
+  { id: "p1u1", course: "p1", num: 1, name: "Kinematics", blurb: "Describing motion: position, velocity, acceleration, graphs, vectors, projectiles.", conceptIds: ["p1-vectors", "p1-kinematics", "p1-motion-graphs", "p1-projectiles"], realWorld: [
+    { title: "Sports analytics", text: "Every hang-time stat and trajectory overlay in a broadcast is projectile motion — commentators estimate range from launch angle and speed alone." },
+    { title: "Autonomous braking", text: "A car's emergency-braking system is constant-a kinematics in reverse: given v and a, compute the stopping distance and compare to radar range." },
+  ] },
   { id: "p1u2", course: "p1", num: 2, name: "Force and Translational Dynamics", blurb: "Systems, free-body diagrams, Newton's laws, friction, springs, circular motion.", conceptIds: ["p1-fbd", "p1-newton2", "p1-friction", "p1-circular-force"] },
-  { id: "p1u3", course: "p1", num: 3, name: "Work, Energy, and Power", blurb: "Energy as a bookkeeping tool: work, kinetic and potential energy, conservation.", conceptIds: ["p1-work", "p1-energy-conservation", "p1-power"] },
-  { id: "p1u4", course: "p1", num: 4, name: "Linear Momentum", blurb: "Impulse, conservation of momentum, collisions, center of mass.", conceptIds: ["p1-momentum", "p1-collisions"] },
+  { id: "p1u3", course: "p1", num: 3, name: "Work, Energy, and Power", blurb: "Energy as a bookkeeping tool: work, kinetic and potential energy, conservation.", conceptIds: ["p1-work", "p1-energy-conservation", "p1-power"], realWorld: [
+    { title: "Regenerative braking", text: "An EV slowing from highway speed converts its kinetic energy back into battery charge — the work–energy theorem run backwards, worth ~70% round trip." },
+    { title: "Power ratings", text: "A 100 W bulb and a 1500 W space heater differ only in energy-per-second — power explains your electricity bill, not energy alone." },
+  ] },
+  { id: "p1u4", course: "p1", num: 4, name: "Linear Momentum", blurb: "Impulse, conservation of momentum, collisions, center of mass.", conceptIds: ["p1-momentum", "p1-collisions"], realWorld: [
+    { title: "Crash engineering", text: "Crumple zones add stopping time, cutting peak force for the same momentum change — the impulse–momentum theorem wearing steel." },
+    { title: "Rocketry", text: "A launch is controlled explosion: throwing mass backward fast gains forward momentum, exactly the equations from this unit." },
+  ] },
   { id: "p1u5", course: "p1", num: 5, name: "Torque and Rotational Dynamics", blurb: "Rotational kinematics, torque, moment of inertia, rotational Newton's second law.", conceptIds: ["p1-angular-kin", "p1-torque", "p1-rot-dynamics"] },
-  { id: "p1u6", course: "p1", num: 6, name: "Energy and Momentum of Rotating Systems", blurb: "Rotational energy, angular momentum, rolling, orbits.", conceptIds: ["p1-rot-energy", "p1-angular-momentum", "p1-rolling"] },
+  { id: "p1u6", course: "p1", num: 6, name: "Energy and Momentum of Rotating Systems", blurb: "Rotational energy, angular momentum, rolling, orbits.", conceptIds: ["p1-rot-energy", "p1-angular-momentum", "p1-rolling", "p1-gravitation-orbits"] },
   { id: "p1u7", course: "p1", num: 7, name: "Oscillations", blurb: "Simple harmonic motion: springs, pendulums, energy in SHM.", conceptIds: ["p1-shm"] },
-  { id: "p1u8", course: "p1", num: 8, name: "Fluids", blurb: "Density, pressure, buoyancy, continuity, Bernoulli-style reasoning.", conceptIds: ["p1-pressure", "p1-buoyancy", "p1-continuity"] },
+  { id: "p1u8", course: "p1", num: 8, name: "Fluids", blurb: "Density, pressure, buoyancy, continuity, Bernoulli-style reasoning.", conceptIds: ["p1-pressure", "p1-buoyancy", "p1-continuity"], realWorld: [
+    { title: "Aviation", text: "Lift is Bernoulli + continuity: air accelerates over the wing, pressure drops. An aneurysm works the same way — narrowing vessels raise blood speed and drop pressure." },
+    { title: "Ships & submarines", text: "Ballast tanks tune average density above or below water's — Archimedes decides the fate of a 200,000-ton tanker." },
+  ] },
 
   // ---------- AP Physics 2 ----------
-  { id: "p2u9", course: "p2", num: 9, name: "Thermodynamics", blurb: "Temperature, ideal gases, heat, internal energy, entropy, probability.", conceptIds: ["p2-ideal-gas", "p2-heat-energy", "p2-entropy"] },
+  { id: "p2u9", course: "p2", num: 9, name: "Thermodynamics", blurb: "Temperature, ideal gases, heat, internal energy, entropy, probability.", conceptIds: ["p2-ideal-gas", "p2-heat-energy", "p2-entropy"], realWorld: [
+    { title: "Engines & refrigerators", text: "Every power plant, car engine, and refrigerator is a first-law machine — heat engines run the cycle forward, heat pumps run it backward against the temperature gradient." },
+    { title: "Weather", text: "Warm air rises because heat adds kinetic energy and lowers density — the ideal gas law running the entire atmosphere." },
+  ] },
   { id: "p2u10", course: "p2", num: 10, name: "Electric Force, Field, and Potential", blurb: "Charge, Coulomb's law, fields, superposition, potential energy.", conceptIds: ["p2-charge-force", "p2-e-field", "p2-potential"] },
-  { id: "p2u11", course: "p2", num: 11, name: "Electric Circuits", blurb: "Current, resistance, series and parallel networks, Kirchhoff's rules.", conceptIds: ["p2-current-ohm", "p2-series-parallel", "p2-kirchhoff"] },
+  { id: "p2u11", course: "p2", num: 11, name: "Electric Circuits", blurb: "Current, resistance, series and parallel networks, Kirchhoff's rules.", conceptIds: ["p2-current-ohm", "p2-series-parallel", "p2-kirchhoff"], realWorld: [
+    { title: "Household wiring", text: "Outlets are wired in parallel so every appliance sees the full 120 V; the breaker watches total current — junction rule with a fuse." },
+    { title: "Touchscreens", text: "Your phone senses finger position by measuring capacitance changes at a grid of intersections — this unit's capacitor physics, industrialized." },
+  ] },
   { id: "p2u12", course: "p2", num: 12, name: "Magnetism and Electromagnetism", blurb: "Magnetic fields and forces, moving charges, currents, flux.", conceptIds: ["p2-magnetic-force", "p2-wire-fields"] },
-  { id: "p2u13", course: "p2", num: 13, name: "Geometric Optics", blurb: "Reflection, refraction, mirrors, lenses, ray tracing, images.", conceptIds: ["p2-refraction", "p2-lenses-mirrors"] },
+  { id: "p2u13", course: "p2", num: 13, name: "Geometric Optics", blurb: "Reflection, refraction, mirrors, lenses, ray tracing, images.", conceptIds: ["p2-refraction", "p2-lenses-mirrors"], realWorld: [
+    { title: "Cameras & eyes", text: "Your eye is a converging lens system with the retina as the screen; focusing muscles change focal length — thin-lens equation with live adjustment." },
+    { title: "Fiber optics", text: "The internet's backbone is light trapped by total internal reflection — Snell's law beyond the critical angle, carrying data across oceans." },
+  ] },
   { id: "p2u14", course: "p2", num: 14, name: "Waves, Sound, and Physical Optics", blurb: "Periodic waves, superposition, interference, Doppler effect.", conceptIds: ["p2-waves", "p2-interference", "p2-doppler"] },
-  { id: "p2u15", course: "p2", num: 15, name: "Modern Physics", blurb: "Photons, photoelectric effect, wave-particle duality, nuclear physics.", conceptIds: ["p2-photoelectric", "p2-nuclear"] },
+  { id: "p2u15", course: "p2", num: 15, name: "Modern Physics", blurb: "Photons, photoelectric effect, wave-particle duality, nuclear physics.", conceptIds: ["p2-photoelectric", "p2-nuclear"], realWorld: [
+    { title: "Medical imaging", text: "PET scans detect annihilation photons from positron-emitting tracers; nuclear medicine is E = Δmc² aimed at diagnosis." },
+    { title: "Solar cells", text: "Photovoltaics is the photoelectric effect in silicon — photons above the band gap free electrons, one per absorbed photon, forever." },
+  ] },
 
   // ---------- AP Physics C: Mechanics ----------
   { id: "cmu1", course: "cm", num: 1, name: "Kinematics", blurb: "Motion with calculus: x(t), v(t) = dx/dt, a(t) = dv/dt, and their integrals.", conceptIds: ["cm-calculus-kin"] },
@@ -101,7 +126,10 @@ export const UNITS: Unit[] = [
   { id: "cemu10", course: "cem", num: 10, name: "Conductors and Capacitors", blurb: "Conductor electrostatics, capacitance, dielectrics, energy density.", conceptIds: ["cem-capacitors"] },
   { id: "cemu11", course: "cem", num: 11, name: "Electric Circuits", blurb: "Kirchhoff's rules, RC circuits, exponential charging and discharging.", conceptIds: ["cem-rc-circuits"] },
   { id: "cemu12", course: "cem", num: 12, name: "Magnetic Fields and Electromagnetism", blurb: "Biot–Savart, Ampère's law, forces on charges and currents.", conceptIds: ["cem-magnetism"] },
-  { id: "cemu13", course: "cem", num: 13, name: "Electromagnetic Induction", blurb: "Faraday's law, Lenz's law, motional EMF, inductance, RL circuits.", conceptIds: ["cem-induction"] },
+  { id: "cemu13", course: "cem", num: 13, name: "Electromagnetic Induction", blurb: "Faraday's law, Lenz's law, motional EMF, inductance, RL circuits.", conceptIds: ["cem-induction"], realWorld: [
+    { title: "The power grid", text: "Every generator on Earth is Faraday's law: rotating coils change flux, inducing EMF. Lenz's law is why generators resist turning — that resistance is the fuel being spent." },
+    { title: "Wireless charging", text: "Your phone charges through air via changing magnetic flux between two coils — induction with no wire, at 60%+ efficiency." },
+  ] },
 ];
 
 // Foundation (pre-physics) skill nodes — used by the readiness engine.

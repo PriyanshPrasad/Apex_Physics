@@ -172,10 +172,12 @@
 }
 
 @layer utilities {
-  /* Core clay surface: inflated drop shadow + inner highlight + base tint */
+  /* Core clay surface: inflated drop shadow + inner highlight + base tint.
+     !important keeps shadcn button utilities (bg-primary, hover:bg-primary/90)
+     from painting over the clay surfaces. */
   .clay {
     border-radius: var(--radius-xl);
-    background: var(--clay-1);
+    background: var(--clay-1) !important;
     box-shadow:
       0 10px 22px rgba(var(--clay-shadow), 0.14),
       0 22px 44px rgba(var(--clay-shadow), 0.12),
@@ -193,7 +195,7 @@
   }
   .clay-sm {
     border-radius: calc(var(--radius-xl) - 6px);
-    background: var(--clay-1);
+    background: var(--clay-1) !important;
     box-shadow:
       0 4px 10px rgba(var(--clay-shadow), 0.12),
       0 10px 20px rgba(var(--clay-shadow), 0.10),
@@ -227,7 +229,7 @@
   /* Tinted clay chips */
   .clay-tint {
     border-radius: calc(var(--radius-xl) - 4px);
-    background: var(--clay-primary-tint);
+    background: var(--clay-primary-tint) !important;
     box-shadow:
       0 8px 18px rgba(var(--clay-shadow), 0.13),
       -6px -6px 14px rgba(var(--clay-light), 0.7),
@@ -248,8 +250,8 @@
   /* Solid clay CTA in primary violet */
   .clay-btn {
     border-radius: calc(var(--radius-xl) - 4px);
-    background: linear-gradient(145deg, #9188ff, var(--clay-4) 55%, #6a58ec);
-    color: #ffffff;
+    background: linear-gradient(145deg, #9188ff, var(--clay-4) 55%, #6a58ec) !important;
+    color: #ffffff !important;
     box-shadow:
       0 8px 18px rgba(124, 108, 244, 0.42),
       0 16px 34px rgba(124, 108, 244, 0.28),
@@ -258,7 +260,7 @@
       inset 0 -6px 12px rgba(0, 0, 20, 0.18);
   }
   .dark .clay-btn {
-    color: #17142a;
+    color: #17142a !important;
     box-shadow:
       0 8px 18px rgba(0, 0, 0, 0.4),
       0 16px 34px rgba(0, 0, 0, 0.3),
@@ -296,4 +298,48 @@
 /* KaTeX sizing inside clay slabs */
 .katex {
   font-size: 1.06em;
+}
+
+/* Range slider thumbs — without these, appearance-none leaves no visible handle */
+input[type="range"] {
+  -webkit-appearance: none;
+  appearance: none;
+  height: 8px;
+  border-radius: 999px;
+}
+input[type="range"]::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 20px;
+  height: 20px;
+  border-radius: 999px;
+  background: radial-gradient(circle at 35% 30%, #ffffff, var(--clay-4) 70%);
+  border: 2px solid rgba(255, 255, 255, 0.85);
+  box-shadow: 0 3px 8px rgba(56, 49, 92, 0.35);
+  cursor: pointer;
+  transition: transform 0.12s ease;
+}
+input[type="range"]::-webkit-slider-thumb:hover {
+  transform: scale(1.12);
+}
+input[type="range"]::-moz-range-thumb {
+  width: 18px;
+  height: 18px;
+  border-radius: 999px;
+  background: radial-gradient(circle at 35% 30%, #ffffff, var(--clay-4) 70%);
+  border: 2px solid rgba(255, 255, 255, 0.85);
+  box-shadow: 0 3px 8px rgba(56, 49, 92, 0.35);
+  cursor: pointer;
+}
+input[type="range"]:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 2px;
+}
+
+/* hide scrollbar on horizontal chip rails */
+.scrollbar-none {
+  scrollbar-width: none;
+}
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
 }

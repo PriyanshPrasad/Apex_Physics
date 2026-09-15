@@ -232,7 +232,7 @@ export default function Lesson() {
   const course = COURSE_MAP[concept.courseId];
   const unit = UNITS.find((u) => u.course === concept.courseId && u.num === concept.unit);
   const SimComp = concept.sim ? SIMS[concept.sim] : null;
-  const totalSteps = STEP_META.length;
+  const totalSteps = concept.derivation ? STEP_META.length : STEP_META.length - 1;
 
   return (
     <div className="mx-auto max-w-7xl">
@@ -272,26 +272,29 @@ export default function Lesson() {
 
         {/* MAIN — the 12 steps */}
         <div className="min-w-0 space-y-5">
-          {/* step pills */}
+          {/* step pills — derivation is hidden when a concept has none, and numbering stays gapless */}
           <div className="flex flex-wrap gap-1.5">
-            {STEP_META.map((s, i) => {
-              const Icon = s.icon;
-              const hidden = s.key === "derivation" && !concept.derivation;
-              if (hidden) return null;
-              return (
-                <button
-                  key={s.key}
-                  onClick={() => setStep(i)}
-                  className={cn(
-                    "clay-sm clay-press flex items-center gap-1.5 px-2.5 py-1.5 text-[11px] font-bold",
-                    step === i ? "text-[var(--clay-primary-deep)]" : "text-muted-foreground",
-                  )}
-                  style={step === i ? { background: "var(--clay-primary-tint)" } : undefined}
-                >
-                  <Icon className="size-3" /> {i + 1}. {s.label}
-                </button>
-              );
-            })}
+            {(() => {
+              let visibleIndex = 0;
+              return STEP_META.map((s, i) => {
+                const Icon = s.icon;
+                if (s.key === "derivation" && !concept.derivation) return null;
+                visibleIndex += 1;
+                return (
+                  <button
+                    key={s.key}
+                    onClick={() => setStep(i)}
+                    className={cn(
+                      "clay-sm clay-press flex items-center gap-1.5 px-2.5 py-1.5 text-[11px] font-bold",
+                      step === i ? "text-[var(--clay-primary-deep)]" : "text-muted-foreground",
+                    )}
+                    style={step === i ? { background: "var(--clay-primary-tint)" } : undefined}
+                  >
+                    <Icon className="size-3" /> {visibleIndex}. {s.label}
+                  </button>
+                );
+              });
+            })()}
           </div>
 
           <div className="min-h-[420px]">

@@ -517,51 +517,86 @@ const TEMPLATES: Template[] = [
       };
     },
   },
-];
+];// Conceptual fallback bank: real questions for concepts without a numeric template.
+const CONCEPTUAL_BANK: Record<string, { prompt: string; choices: string[]; correct: number; hints: string[]; category?: string }> = {
+  "p2-ideal-gas": {
+    prompt: "A gas in a sealed container is heated at constant volume. What happens to its pressure?",
+    choices: ["Decreases", "Increases", "Stays the same", "Drops to zero"],
+    correct: 1,
+    hints: ["Which gas-law variable is held fixed?", "Constant V: P and T are proportional.", "Gay-Lussac: P/T = const."],
+  },
+  "p2-e-field": {
+    prompt: "Two equal positive charges are separated. At the midpoint between them, the electric field is:",
+    choices: ["Doubled", "Zero", "Halved", "Infinite"],
+    correct: 1,
+    hints: ["Add the fields as vectors.", "Each charge's field at the midpoint points opposite to the other's.", "Equal magnitudes, opposite directions → cancel."],
+  },
+  "p2-photoelectric": {
+    prompt: "Increasing the intensity of light below the threshold frequency will:",
+    choices: ["Eject electrons faster", "Eject no electrons", "Increase K_max", "Lower the work function"],
+    correct: 1,
+    hints: ["What does each photon's energy depend on?", "Energy per photon = hf, independent of intensity.", "Below threshold, no single photon has enough energy."],
+  },
+  "p1-buoyancy": {
+    prompt: "An ice cube floats in water. The buoyant force on it equals:",
+    choices: ["Less than its weight", "Its weight", "More than its weight", "Zero"],
+    correct: 1,
+    hints: ["The ice is in equilibrium.", "ΣF = 0 while floating.", "F_b = mg exactly."],
+  },
+  "cm-shm-ode": {
+    prompt: "The differential equation m x'' = −kx tells you that SHM's angular frequency is:",
+    choices: ["ω = k/m", "ω = √(k/m)", "ω = √(m/k)", "ω = A·k/m"],
+    correct: 1,
+    hints: ["Substitute x = A cos(ωt) into the equation.", "x'' = −ω²x; require −ω² = −k/m.", "ω = √(k/m)."],
+  },
+  "p1-fbd": {
+    prompt: "A box accelerates up a frictionless ramp, pulled by a rope parallel to the ramp. Which forces belong on its free-body diagram?",
+    choices: ["Weight, normal, tension, and ma up the ramp", "Weight, normal, and tension", "Weight and tension only", "Weight, normal, tension, and a 'force of motion'"],
+    correct: 1,
+    hints: ["Draw only interaction forces — things actually touching it, plus field forces.", "ma is the RESULT of forces, not a force itself.", "Three forces: weight, normal, tension."],
+    category: "missing-force",
+  },
+  "p1-motion-graphs": {
+    prompt: "A velocity–time graph is a straight line sloping downward, crossing zero at t = 3 s. The object:",
+    choices: ["Speeds up the whole time", "Slows, stops at t = 3 s, then speeds up the other way", "Has zero acceleration", "Reverses acceleration at t = 3 s"],
+    correct: 1,
+    hints: ["What does the sign of v tell you about direction of travel?", "Slope is constant and negative: steady acceleration against the motion.", "Slows to rest, then moves backward, speeding up."],
+    category: "graph",
+  },
+  "p2-kirchhoff": {
+    prompt: "In a single-loop circuit, traversing a resistor against the current gives a potential:",
+    choices: ["Drop of −IR", "Rise of +IR", "Change of zero", "Drop of IR only if the battery is ideal"],
+    correct: 1,
+    hints: ["Current flows from high to low potential through a resistor.", "Walking against the current means walking uphill in potential.", "+IR — a rise."],
+    category: "sign",
+  },
+  "cem-magnetism": {
+    prompt: "You need the field inside a long solenoid. The efficient tool is:",
+    choices: ["Biot–Savart over every turn", "Ampère's law with a rectangular loop straddling the side", "Gauss's law for magnetism", "The point-charge field formula"],
+    correct: 1,
+    hints: ["What does the symmetry make constant along a clever path?", "Interior B is uniform and axial; a rectangular loop exploits exactly that.", "Ampère: B·L = μ₀ I_enc."],
+    category: "assumption",
+  },
+  "cem-capacitors": {
+    prompt: "A parallel-plate capacitor stays connected to its battery while the plates are pulled apart. What happens to the charge?",
+    choices: ["Increases", "Decreases (V fixed, C drops, so Q = CV drops)", "Stays the same", "Drops to zero"],
+    correct: 1,
+    hints: ["A connected battery fixes which variable?", "V is constant; C = ε₀A/d falls as d grows.", "Q = CV falls."],
+    category: "wrong-system",
+  },
+};
 
-// Concept fallback: generic conceptual questions for any concept without a template.
+// Last-resort fallback: universal reasoning-habits question.
 const GENERIC: Template[] = [
   {
     conceptId: "*",
-    gen: (d) => {
-      const conceptPromptBank: Record<string, { prompt: string; choices: string[]; correct: number; hints: string[] }> = {
-        "p2-ideal-gas": {
-          prompt: "A gas in a sealed container is heated at constant volume. What happens to its pressure?",
-          choices: ["Decreases", "Increases", "Stays the same", "Drops to zero"],
-          correct: 1,
-          hints: ["Which gas-law variable is held fixed?", "Constant V: P and T are proportional.", "Gay-Lussac: P/T = const."],
-        },
-        "p2-e-field": {
-          prompt: "Two equal positive charges are separated. At the midpoint between them, the electric field is:",
-          choices: ["Doubled", "Zero", "Halved", "Infinite"],
-          correct: 1,
-          hints: ["Add the fields as vectors.", "Each charge's field at the midpoint points the opposite way of the other's.", "Equal magnitudes, opposite directions → cancel."],
-        },
-        "p2-photoelectric": {
-          prompt: "Increasing the intensity of light below the threshold frequency will:",
-          choices: ["Eject electrons faster", "Eject no electrons", "Increase K_max", "Lower the work function"],
-          correct: 1,
-          hints: ["What does each photon's energy depend on?", "Energy per photon = hf, independent of intensity.", "Below threshold, no single photon has enough energy."],
-        },
-        "p1-buoyancy": {
-          prompt: "An ice cube floats in water. The buoyant force on it equals:",
-          choices: ["Less than its weight", "Its weight", "More than its weight", "Zero"],
-          correct: 1,
-          hints: ["The ice is in equilibrium.", "ΣF = 0 while floating.", "F_b = mg exactly."],
-        },
-        "cm-shm-ode": {
-          prompt: "The differential equation m x'' = −kx tells you that SHM's angular frequency is:",
-          choices: ["ω = k/m", "ω = √(k/m)", "ω = √(m/k)", "ω = A·k/m"],
-          correct: 1,
-          hints: ["Substitute x = A cos(ωt) into the equation.", "x'' = −ω²x; require −ω² = −k/m.", "ω = √(k/m)."],
-        },
-      };
-      const bank = conceptPromptBank;
+    gen: (_d) => {
       return {
-        prompt: "Conceptual check: which statement best reflects careful physics reasoning?",
-        choices: ["Pick the formula with the most variables", "Identify the system, forces, and conservation laws first", "Assume all forces are constant", "Skip the diagram"],
+        prompt: "Before choosing any equation for a new problem, the first professional move is to:",
+        choices: ["Pick the formula with the most variables", "Identify the system, the interactions, and the governing principle", "Assume all forces are constant", "Start substituting numbers immediately"],
         correct: 1,
-        hints: ["Think about the problem-solving workflow.", "Diagrams and systems come before equations.", "Model first, then math."],
+        hints: ["Think about the problem-solving workflow taught in every lesson here.", "Diagrams and systems come before equations.", "Model first, then math."],
+        category: "conceptual",
       };
     },
   },
@@ -569,9 +604,13 @@ const GENERIC: Template[] = [
 
 export function generateProblem(conceptId: string, difficulty: Difficulty = "medium"): GenProblem {
   const matching = TEMPLATES.filter((t) => t.conceptId === conceptId);
-  const pool = matching.length > 0 ? matching : GENERIC;
-  const tpl = pool[Math.floor(Math.random() * pool.length)];
-  const core = tpl.gen(difficulty, Math.random);
+  const conceptual = CONCEPTUAL_BANK[conceptId];
+  const core =
+    matching.length > 0
+      ? matching[Math.floor(Math.random() * matching.length)].gen(difficulty, Math.random)
+      : conceptual
+        ? { ...conceptual, category: conceptual.category ?? "conceptual" }
+        : GENERIC[0].gen(difficulty, Math.random);
   return {
     id: `${conceptId}-${Date.now()}-${Math.floor(Math.random() * 1e6)}`,
     conceptId,

@@ -31,6 +31,7 @@ const Labs = lazy(() => import("./pages/Labs.tsx"));
 const Sims = lazy(() => import("./pages/Sims.tsx"));
 const KnowledgeMap = lazy(() => import("./pages/Map.tsx"));
 const Equations = lazy(() => import("./pages/Equations.tsx"));
+const Units = lazy(() => import("./pages/Units.tsx"));
 const Mistakes = lazy(() => import("./pages/Mistakes.tsx"));
 const ProgressPage = lazy(() => import("./pages/Progress.tsx"));
 const Compare = lazy(() => import("./pages/Compare.tsx"));
@@ -150,6 +151,7 @@ createRoot(document.getElementById("root")!).render(
                 <Route path="/sims" element={<Sims />} />
                 <Route path="/map" element={<KnowledgeMap />} />
                 <Route path="/equations" element={<Equations />} />
+                <Route path="/units" element={<Units />} />
                 <Route path="/mistakes" element={<Mistakes />} />
                 <Route path="/progress" element={<ProgressPage />} />
                 <Route path="/compare" element={<Compare />} />

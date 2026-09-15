@@ -92,7 +92,10 @@ export function GasSim() {
     pressAcc.current.collisions += wallHits;
     pressAcc.current.time += dt;
     if (pressAcc.current.time > 0.5) {
-      const p = (pressAcc.current.collisions / pressAcc.current.time) * (temp / 300) * 8;
+      // Normalize by wall area so compressing the gas honestly raises P
+      const wallArea = ((wallX - w * 0.15) / w) * 0.85;
+      const rate = pressAcc.current.collisions / pressAcc.current.time;
+      const p = (rate / Math.max(0.15, wallArea)) * 0.12;
       setPressure(Math.round(p * 10) / 10);
       pressAcc.current = { collisions: 0, time: 0 };
     }
@@ -193,7 +196,10 @@ export function ChargesSim() {
     const rect = e.currentTarget.getBoundingClientRect();
     const x = (e.clientX - rect.left) / rect.width, y = (e.clientY - rect.top) / rect.height;
     const idx = charges.findIndex((c) => Math.hypot((c.x - x) * rect.width, (c.y - y) * rect.height) < 24);
-    if (idx >= 0) setDrag(idx);
+    if (idx >= 0) {
+      setDrag(idx);
+      e.currentTarget.setPointerCapture(e.pointerId);
+    }
   };
   const onMove = (e: React.PointerEvent<HTMLCanvasElement>) => {
     if (drag === null) return;
@@ -205,7 +211,7 @@ export function ChargesSim() {
   return (
     <div>
       <SimFrame height={340}>
-        <canvas ref={ref} className="h-full w-full touch-none" onPointerDown={onDown} onPointerMove={onMove} onPointerUp={() => setDrag(null)} />
+        <canvas ref={ref} className="h-full w-full touch-none" onPointerDown={onDown} onPointerMove={onMove} onPointerUp={() => setDrag(null)} onPointerCancel={() => setDrag(null)} />
       </SimFrame>
       <SimRow>
         <button className="clay-sm clay-press px-3 py-1.5 text-xs font-semibold" onClick={() => setCharges((cs) => [...cs, { x: 0.5, y: 0.3, q: cs.length % 2 === 0 ? 1 : -1 }])}>+ Add charge</button>

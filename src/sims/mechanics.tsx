@@ -217,9 +217,19 @@ export function FBDSim() {
       arrow(ctx, bx, by, bx + fx, by + fy, "#ffc46b", 3, 9);
     }
     ctx.fillStyle = fg; ctx.font = "12px system-ui";
-    ctx.fillText(`F_N = ${withFriction ? (mass * 9.8 * Math.cos(rad)).toFixed(0) : (mass * 9.8 * Math.cos(rad)).toFixed(0)} N`, 12, 20);
-    ctx.fillText(`F_g = ${(mass * 9.8).toFixed(0)} N`, 12, 38);
-    ctx.fillText(`a along ramp = ${withFriction ? Math.max(0, 9.8 * (Math.sin(rad) - mu * Math.cos(rad))).toFixed(1) : (9.8 * Math.sin(rad)).toFixed(1)} m/s²`, 12, 56);
+    const FN = mass * 9.8 * Math.cos(rad);
+    const fMax = mu * FN;
+    const gAlong = 9.8 * Math.sin(rad); // m/s² along the ramp
+    const slides = gAlong * mass > fMax; // mg·sinθ vs μ·F_N
+    const aSlide = Math.max(0, gAlong - mu * 9.8 * Math.cos(rad));
+    ctx.fillText(`F_N = mg·cosθ = ${FN.toFixed(0)} N   F_g = ${(mass * 9.8).toFixed(0)} N`, 12, 20);
+    ctx.fillText(`f_max = μF_N = ${fMax.toFixed(0)} N  vs  mg·sinθ = ${(gAlong * mass).toFixed(0)} N`, 12, 38);
+    ctx.fillText(
+      slides
+        ? `Slides! a = ${aSlide.toFixed(1)} m/s² down-ramp`
+        : `Static: friction holds it (needs ${(gAlong * mass).toFixed(0)} N ≤ ${fMax.toFixed(0)} N)`,
+      12, 56,
+    );
   });
   return (
     <div>
