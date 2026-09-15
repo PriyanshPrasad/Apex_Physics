@@ -1,6 +1,7 @@
 /* DO NOT CHANGE */
 @import "tailwindcss";
 @import "tw-animate-css";
+@import "katex/dist/katex.min.css";
 @custom-variant dark (&:is(.dark *));
 
 /* DO NOT CHANGE */
@@ -42,74 +43,108 @@
   --color-sidebar-ring: var(--sidebar-ring);
 }
 
-/* CHANGE VALUES FOR THEME */
+/* ===== CLAYMORPHISM THEME ===== */
 :root {
-  --radius: 0.625rem;
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
-  --chart-1: oklch(0.646 0.222 41.116);
-  --chart-2: oklch(0.6 0.118 184.704);
-  --chart-3: oklch(0.398 0.07 227.392);
-  --chart-4: oklch(0.828 0.189 84.429);
-  --chart-5: oklch(0.769 0.188 70.08);
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
+  --radius: 1.5rem;
+  /* warm clay paper background with a soft sky wash */
+  --background: #ece9f7;
+  --foreground: #3c3752;
+  --card: #f4f1fb;
+  --card-foreground: #3c3752;
+  --popover: #f7f4fc;
+  --popover-foreground: #3c3752;
+  --primary: #7c6cf4;
+  --primary-foreground: #ffffff;
+  --secondary: #ffd6e0;
+  --secondary-foreground: #4d3a47;
+  --muted: #e6e2f3;
+  --muted-foreground: #7c7697;
+  --accent: #bfe6f2;
+  --accent-foreground: #2e4550;
+  --destructive: #f0708a;
+  --border: #ddd7ef;
+  --input: #e4dff5;
+  --ring: #7c6cf4;
+  --chart-1: #7c6cf4;
+  --chart-2: #ff8fb1;
+  --chart-3: #6fd6c8;
+  --chart-4: #ffc46b;
+  --chart-5: #8fb8f7;
+  --sidebar: #e8e4f6;
+  --sidebar-foreground: #3c3752;
+  --sidebar-primary: #7c6cf4;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #dcd5f1;
+  --sidebar-accent-foreground: #3c3752;
+  --sidebar-border: #d6cfeb;
+  --sidebar-ring: #7c6cf4;
+
+  /* clay palette tokens */
+  --clay-1: #f4f1fb;
+  --clay-2: #e6e1f5;
+  --clay-3: #d5cdf0;
+  --clay-4: #7c6cf4;
+  --clay-shadow: 56, 49, 92;
+  --clay-light: 255, 255, 255;
+  --clay-inset: rgba(255, 255, 255, 0.85);
+  --clay-inset-dark: rgba(60, 55, 82, 0.08);
+  --clay-primary-tint: #e9e5fd;
+  --clay-primary-deep: #5a48e0;
 }
 
 .dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.205 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.205 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.922 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.556 0 0);
-  --chart-1: oklch(0.488 0.243 264.376);
-  --chart-2: oklch(0.696 0.17 162.48);
-  --chart-3: oklch(0.769 0.188 70.08);
-  --chart-4: oklch(0.627 0.265 303.9);
-  --chart-5: oklch(0.645 0.246 16.439);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.556 0 0);
+  --background: #262237;
+  --foreground: #efecf9;
+  --card: #2f2a45;
+  --card-foreground: #efecf9;
+  --popover: #332e4b;
+  --popover-foreground: #efecf9;
+  --primary: #9a8bff;
+  --primary-foreground: #1d1a2b;
+  --secondary: #a05c76;
+  --secondary-foreground: #ffe9f0;
+  --muted: #3a3452;
+  --muted-foreground: #a49dbf;
+  --accent: #4d7592;
+  --accent-foreground: #e6f3fb;
+  --destructive: #e06a82;
+  --border: #453e61;
+  --input: #453e61;
+  --ring: #9a8bff;
+  --chart-1: #9a8bff;
+  --chart-2: #ff9dbb;
+  --chart-3: #6fd6c8;
+  --chart-4: #ffc46b;
+  --chart-5: #8fb8f7;
+  --sidebar: #2b2640;
+  --sidebar-foreground: #efecf9;
+  --sidebar-primary: #9a8bff;
+  --sidebar-primary-foreground: #1d1a2b;
+  --sidebar-accent: #3a3452;
+  --sidebar-accent-foreground: #efecf9;
+  --sidebar-border: #453e61;
+  --sidebar-ring: #9a8bff;
+
+  --clay-1: #322d49;
+  --clay-2: #3a3452;
+  --clay-3: #453e63;
+  --clay-4: #9a8bff;
+  --clay-shadow: 14, 11, 26;
+  --clay-light: 255, 255, 255;
+  --clay-inset: rgba(255, 255, 255, 0.10);
+  --clay-inset-dark: rgba(10, 8, 20, 0.45);
+  --clay-primary-tint: #3d3570;
+  --clay-primary-deep: #7c6cf4;
+}
+
+@theme inline {
+  --color-clay-1: var(--clay-1);
+  --color-clay-2: var(--clay-2);
+  --color-clay-3: var(--clay-3);
+  --color-clay-4: var(--clay-4);
+  --color-clay-primary-tint: var(--clay-primary-tint);
+  --color-clay-primary-deep: var(--clay-primary-deep);
+  --color-secondary-soft: var(--secondary);
 }
 
 @layer base {
@@ -118,9 +153,147 @@
   }
   body {
     @apply bg-background text-foreground;
+    background-image:
+      radial-gradient(1100px 540px at 8% -8%, rgba(124, 108, 244, 0.12), transparent 60%),
+      radial-gradient(900px 480px at 96% 4%, rgba(255, 143, 177, 0.12), transparent 60%),
+      radial-gradient(760px 460px at 50% 110%, rgba(111, 214, 200, 0.12), transparent 60%);
+    background-attachment: fixed;
+  }
+  h1, h2, h3, h4 {
+    letter-spacing: -0.02em;
   }
   button:not([disabled]),
   [role="button"]:not([disabled]) {
     cursor: pointer;
   }
+  ::selection {
+    background: rgba(124, 108, 244, 0.28);
+  }
+}
+
+@layer utilities {
+  /* Core clay surface: inflated drop shadow + inner highlight + base tint */
+  .clay {
+    border-radius: var(--radius-xl);
+    background: var(--clay-1);
+    box-shadow:
+      0 10px 22px rgba(var(--clay-shadow), 0.14),
+      0 22px 44px rgba(var(--clay-shadow), 0.12),
+      -10px -10px 24px rgba(var(--clay-light), 0.85),
+      inset 0 -8px 16px var(--clay-inset-dark),
+      inset 0 3px 6px var(--clay-inset);
+  }
+  .dark .clay {
+    box-shadow:
+      0 10px 22px rgba(var(--clay-shadow), 0.5),
+      0 22px 44px rgba(var(--clay-shadow), 0.42),
+      -8px -8px 20px rgba(var(--clay-light), 0.05),
+      inset 0 -8px 16px var(--clay-inset-dark),
+      inset 0 3px 6px var(--clay-inset);
+  }
+  .clay-sm {
+    border-radius: calc(var(--radius-xl) - 6px);
+    background: var(--clay-1);
+    box-shadow:
+      0 4px 10px rgba(var(--clay-shadow), 0.12),
+      0 10px 20px rgba(var(--clay-shadow), 0.10),
+      -5px -5px 12px rgba(var(--clay-light), 0.8),
+      inset 0 -4px 8px var(--clay-inset-dark),
+      inset 0 2px 4px var(--clay-inset);
+  }
+  .dark .clay-sm {
+    box-shadow:
+      0 4px 10px rgba(var(--clay-shadow), 0.45),
+      0 10px 20px rgba(var(--clay-shadow), 0.35),
+      -4px -4px 10px rgba(var(--clay-light), 0.04),
+      inset 0 -4px 8px var(--clay-inset-dark),
+      inset 0 2px 4px var(--clay-inset);
+  }
+  /* Pressed-in clay (wells, inputs, screens) */
+  .clay-inset {
+    border-radius: calc(var(--radius-xl) - 6px);
+    background: var(--clay-2);
+    box-shadow:
+      inset 0 6px 14px rgba(var(--clay-shadow), 0.18),
+      inset 0 2px 4px rgba(var(--clay-shadow), 0.16),
+      inset 0 -3px 6px rgba(var(--clay-light), 0.55);
+  }
+  .dark .clay-inset {
+    box-shadow:
+      inset 0 6px 14px rgba(var(--clay-shadow), 0.55),
+      inset 0 2px 4px rgba(var(--clay-shadow), 0.45),
+      inset 0 -3px 6px rgba(var(--clay-light), 0.05);
+  }
+  /* Tinted clay chips */
+  .clay-tint {
+    border-radius: calc(var(--radius-xl) - 4px);
+    background: var(--clay-primary-tint);
+    box-shadow:
+      0 8px 18px rgba(var(--clay-shadow), 0.13),
+      -6px -6px 14px rgba(var(--clay-light), 0.7),
+      inset 0 2px 4px var(--clay-inset),
+      inset 0 -5px 10px var(--clay-inset-dark);
+  }
+  /* Squishy pressable clay button */
+  .clay-press {
+    transition: transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.15s ease, filter 0.15s ease;
+  }
+  .clay-press:active {
+    transform: translateY(2px) scale(0.98);
+    filter: brightness(0.97);
+  }
+  .clay-press:hover {
+    transform: translateY(-1px);
+  }
+  /* Solid clay CTA in primary violet */
+  .clay-btn {
+    border-radius: calc(var(--radius-xl) - 4px);
+    background: linear-gradient(145deg, #9188ff, var(--clay-4) 55%, #6a58ec);
+    color: #ffffff;
+    box-shadow:
+      0 8px 18px rgba(124, 108, 244, 0.42),
+      0 16px 34px rgba(124, 108, 244, 0.28),
+      -6px -6px 14px rgba(var(--clay-light), 0.55),
+      inset 0 2px 4px rgba(255, 255, 255, 0.45),
+      inset 0 -6px 12px rgba(0, 0, 20, 0.18);
+  }
+  .dark .clay-btn {
+    color: #17142a;
+    box-shadow:
+      0 8px 18px rgba(0, 0, 0, 0.4),
+      0 16px 34px rgba(0, 0, 0, 0.3),
+      -6px -6px 14px rgba(255, 255, 255, 0.06),
+      inset 0 2px 4px rgba(255, 255, 255, 0.3),
+      inset 0 -6px 12px rgba(0, 0, 20, 0.22);
+  }
+  /* Equations live on little chalk slabs */
+  .clay-eq {
+    border-radius: calc(var(--radius-xl) - 6px);
+    background: linear-gradient(160deg, var(--clay-primary-tint), var(--clay-2));
+    box-shadow:
+      inset 0 2px 4px var(--clay-inset),
+      inset 0 -4px 10px var(--clay-inset-dark),
+      0 4px 10px rgba(var(--clay-shadow), 0.08);
+  }
+  /* track sim canvases on a well */
+  .clay-screen {
+    border-radius: calc(var(--radius-xl) - 4px);
+    background: var(--clay-2);
+    box-shadow:
+      inset 0 8px 18px rgba(var(--clay-shadow), 0.2),
+      inset 0 -4px 8px rgba(var(--clay-light), 0.5);
+  }
+  .dark .clay-screen {
+    box-shadow:
+      inset 0 8px 18px rgba(var(--clay-shadow), 0.55),
+      inset 0 -4px 8px rgba(var(--clay-light), 0.05);
+  }
+  .text-glow {
+    text-shadow: 0 2px 12px rgba(124, 108, 244, 0.35);
+  }
+}
+
+/* KaTeX sizing inside clay slabs */
+.katex {
+  font-size: 1.06em;
 }
