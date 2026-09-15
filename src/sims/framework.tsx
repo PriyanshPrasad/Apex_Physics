@@ -1,11 +1,14 @@
-import { useCallback, useEffect, useRef } from "react";
+import { useEffect, useRef } from "react";
 
 export interface DrawCtx {
   ctx: CanvasRenderingContext2D;
   w: number;
   h: number;
+  t: number;
   fg: string;
   muted: string;
+  clay: string;
+  accent: string;
   violet: string;
   pink: string;
   teal: string;
@@ -13,96 +16,19 @@ export interface DrawCtx {
   blue: string;
 }
 
-/** Mutable sim state + per-frame interaction events handed to every draw call. */
-export interface SimState {
-  /** Simulated time in seconds (pauses with the sim; survives re-renders). */
-  t: number;
-  /** Number of draw frames so far. */
-  frame: number;
-  /** One-shot UI events queued by handlers: "launch", "run", "reset", … */
-  events: Set<string>;
-  /** Last pointer position in canvas CSS pixels (null until pointerdown). */
-  drag: { id: string; x: number; y: number } | null;
-  /** True while a pointer is down. */
-  dragging: boolean;
-}
-
-export interface CanvasApi {
-  canvasRef: (el: HTMLCanvasElement | null) => void;
-  /** Read/consume the sim state inside draw callbacks. */
-  state: SimState;
-  /** Queue a one-shot event, e.g. api.fire("launch"). */
-  fire: (event: string) => void;
-  /** Full sim reset: clears time, events, drag, and your reset hook. */
-  reset: () => void;
-  /** Schedule your reset hook to run at the start of the next frame. */
-  onReset: (fn: () => void) => void;
-}
-
-/**
- * Canvas loop with DPR scaling, delta-time stepping, pause support, and an
- * interaction-event channel. Physics state should live in useRef objects the
- * draw callback mutates; React state (sliders/toggles) is read directly in the
- * draw callback so parameter changes always take effect on the next frame.
- */
-export function useSimCanvas(
-  draw: (d: DrawCtx, api: CanvasApi) => void,
-  { paused = false, onReset }: { paused?: boolean; onReset?: () => void } = {},
-): CanvasApi {
-  const elRef = useRef<HTMLCanvasElement | null>(null);
+/** Canvas hook with DPR scaling and rAF loop. */
+export function useCanvasLoop(draw: (d: DrawCtx) => void) {
+  const ref = useRef<HTMLCanvasElement>(null);
   const drawRef = useRef(draw);
   drawRef.current = draw;
-  const pausedRef = useRef(paused);
-  pausedRef.current = paused;
-  const resetHookRef = useRef<(() => void) | undefined>(onReset);
-  resetHookRef.current = onReset;
-
-  const stateRef = useRef<SimState>({
-    t: 0,
-    frame: 0,
-    events: new Set(),
-    drag: null,
-    dragging: false,
-  });
-  const lastTimeRef = useRef<number | null>(null);
-
-  const apiRef = useRef<CanvasApi>({
-    canvasRef: (el) => {
-      elRef.current = el;
-    },
-    state: stateRef.current,
-    fire: (event) => stateRef.current.events.add(event),
-    reset: () => {
-      const s = stateRef.current;
-      s.t = 0;
-      s.frame = 0;
-      s.events.clear();
-      s.drag = null;
-      s.dragging = false;
-      lastTimeRef.current = null;
-      resetHookRef.current?.();
-    },
-    onReset: (fn) => {
-      resetHookRef.current = fn;
-    },
-  });
-
   useEffect(() => {
-    const canvas = elRef.current;
+    const canvas = ref.current;
     if (!canvas) return;
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
     let raf = 0;
-    let disposed = false;
-
+    const start = performance.now();
     const loop = (now: number) => {
-      if (disposed) return;
-      const s = stateRef.current;
-      const dt = lastTimeRef.current === null ? 0 : Math.min((now - lastTimeRef.current) / 1000, 0.05);
-      lastTimeRef.current = now;
-      if (!pausedRef.current) s.t += dt;
-
-      // resize with DPR
       const dpr = Math.min(window.devicePixelRatio || 1, 2);
       const rect = canvas.getBoundingClientRect();
       const w = Math.max(1, rect.width);
@@ -113,57 +39,26 @@ export function useSimCanvas(
       }
       ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
       const dark = document.documentElement.classList.contains("dark");
+      const d: DrawCtx = {
+        ctx, w, h, t: (now - start) / 1000,
+        fg: dark ? "#efecf9" : "#3c3752",
+        muted: dark ? "#a49dbf" : "#7c7697",
+        clay: dark ? "#3a3452" : "#e6e2f3",
+        accent: dark ? "#4d7592" : "#bfe6f2",
+        violet: "#8b7bff",
+        pink: "#ff8fb1",
+        teal: "#4fc7b8",
+        gold: "#ffc46b",
+        blue: "#8fb8f7",
+      };
       ctx.clearRect(0, 0, w, h);
-      drawRef.current(
-        {
-          ctx, w, h,
-          fg: dark ? "#efecf9" : "#3c3752",
-          muted: dark ? "#a49dbf" : "#7c7697",
-          violet: "#7c6cf4",
-          pink: "#ff8fb1",
-          teal: "#4fc7b8",
-          gold: "#ffc46b",
-          blue: "#8fb8f7",
-        },
-        apiRef.current,
-      );
-      // frame bookkeeping AFTER draw so events queued during the frame apply next frame
-      s.frame += 1;
-      s.events.clear();
-      if (s.drag && !s.dragging) s.drag = null;
+      draw(d);
       raf = requestAnimationFrame(loop);
     };
     raf = requestAnimationFrame(loop);
-    return () => {
-      disposed = true;
-      cancelAnimationFrame(raf);
-    };
+    return () => cancelAnimationFrame(raf);
   }, []);
-
-  return apiRef.current;
-}
-
-/** Pointer handlers wiring drag position (in canvas CSS px) into SimState. */
-export function pointerHandlers(api: CanvasApi, id = "main") {
-  return {
-    onPointerDown: (e: React.PointerEvent<HTMLCanvasElement>) => {
-      const rect = e.currentTarget.getBoundingClientRect();
-      api.state.drag = { id, x: e.clientX - rect.left, y: e.clientY - rect.top };
-      api.state.dragging = true;
-      e.currentTarget.setPointerCapture(e.pointerId);
-    },
-    onPointerMove: (e: React.PointerEvent<HTMLCanvasElement>) => {
-      if (!api.state.dragging) return;
-      const rect = e.currentTarget.getBoundingClientRect();
-      api.state.drag = { id, x: e.clientX - rect.left, y: e.clientY - rect.top };
-    },
-    onPointerUp: () => {
-      api.state.dragging = false;
-    },
-    onPointerCancel: () => {
-      api.state.dragging = false;
-    },
-  };
+  return ref;
 }
 
 export function SimFrame({ children, height = 320 }: { children: React.ReactNode; height?: number }) {
@@ -176,25 +71,6 @@ export function SimFrame({ children, height = 320 }: { children: React.ReactNode
 
 export function SimRow({ children }: { children: React.ReactNode }) {
   return <div className="mt-3 flex flex-wrap items-center gap-4">{children}</div>;
-}
-
-export function SimButton({
-  children, onClick, active,
-}: {
-  children: React.ReactNode;
-  onClick: () => void;
-  active?: boolean;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className="clay-sm clay-press px-3 py-1.5 text-xs font-semibold"
-      style={active ? { background: "var(--clay-primary-tint)", color: "var(--clay-primary-deep)" } : undefined}
-    >
-      {children}
-    </button>
-  );
 }
 
 export function Slider({

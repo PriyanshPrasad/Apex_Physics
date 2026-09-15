@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router";
 import {
   ArrowLeft, ArrowRight, Check, ChevronRight, Lightbulb, HelpCircle,
@@ -6,7 +6,6 @@ import {
   Brain, Shuffle, Award, AlertTriangle, Link2,
 } from "lucide-react";
 import { CONCEPT_MAP, COURSE_MAP, COURSES, UNITS, type Concept } from "@/data/curriculum";
-import { DERIVATIONS } from "@/data/derivations";
 import { generateProblem, type GenProblem } from "@/data/problems";
 import { useProgress, weakestPrereqs, masteryOf } from "@/lib/progress";
 import { M, Eq } from "@/components/math/Math";
@@ -15,34 +14,24 @@ import { cn } from "@/lib/utils";
 import { SIMS } from "@/sims/registry";
 import { CONCEPT_QUESTIONS, checkAnswer } from "@/data/conceptQuestions";
 
-// Steps are computed per concept so that no step ever renders empty: the
-// Derivation panel lives inside Math Meaning when a derivation exists and the
-// step is dropped entirely when it doesn't.
-function stepsFor(concept: Concept) {
-  return [
-    { key: "intuition", label: "Intuition", icon: Lightbulb },
-    { key: "visualize", label: "Visualize", icon: Eye },
-    { key: "representation", label: "Represent", icon: PenTool },
-    { key: "mathMeaning", label: "Math meaning", icon: Sigma },
-    ...(concept.derivation ? [{ key: "derivation", label: "Derivation", icon: FlaskConical }] : []),
-    { key: "recognition", label: "Recognize", icon: Compass },
-    { key: "setup", label: "Setup", icon: Hammer },
-    { key: "guided", label: "Guided problem", icon: Target },
-    { key: "independent", label: "Solve it", icon: Brain },
-    { key: "conceptual", label: "Concept check", icon: HelpCircle },
-    { key: "transfer", label: "Transfer", icon: Shuffle },
-    { key: "mastery", label: "Mastery", icon: Award },
-  ] as const;
-}
+const STEP_META = [
+  { key: "intuition", label: "Intuition", icon: Lightbulb },
+  { key: "visualize", label: "Visualize", icon: Eye },
+  { key: "representation", label: "Represent", icon: PenTool },
+  { key: "mathMeaning", label: "Math meaning", icon: Sigma },
+  { key: "derivation", label: "Derivation", icon: FlaskConical },
+  { key: "recognition", label: "Recognize", icon: Compass },
+  { key: "setup", label: "Setup", icon: Hammer },
+  { key: "guided", label: "Guided problem", icon: Target },
+  { key: "independent", label: "Solve it", icon: Brain },
+  { key: "conceptual", label: "Concept check", icon: HelpCircle },
+  { key: "transfer", label: "Transfer", icon: Shuffle },
+  { key: "mastery", label: "Mastery", icon: Award },
+] as const;
 
 function conceptName(id: string): string {
   if (id in CONCEPT_MAP) return CONCEPT_MAP[id].name;
   return id.replace(/^f-/, "").replace(/-/g, " ").replace(/\b\w/g, (m) => m.toUpperCase());
-}
-
-// Attach library derivations to concepts once at module load (idempotent).
-for (const c of Object.values(CONCEPT_MAP)) {
-  if (!c.derivation && DERIVATIONS[c.id]) c.derivation = DERIVATIONS[c.id];
 }
 
 function conceptCourse(id: string): string | null {
@@ -243,9 +232,7 @@ export default function Lesson() {
   const course = COURSE_MAP[concept.courseId];
   const unit = UNITS.find((u) => u.course === concept.courseId && u.num === concept.unit);
   const SimComp = concept.sim ? SIMS[concept.sim] : null;
-  const STEPS = stepsFor(concept);
-  const totalSteps = STEPS.length;
-  const stepKey = STEPS[Math.min(step, totalSteps - 1)].key;
+  const totalSteps = concept.derivation ? STEP_META.length : STEP_META.length - 1;
 
   return (
     <div className="mx-auto max-w-7xl">
@@ -285,28 +272,33 @@ export default function Lesson() {
 
         {/* MAIN — the 12 steps */}
         <div className="min-w-0 space-y-5">
-          {/* step pills — computed so numbering is always gapless */}
+          {/* step pills — derivation is hidden when a concept has none, and numbering stays gapless */}
           <div className="flex flex-wrap gap-1.5">
-            {STEPS.map((s, i) => {
-              const Icon = s.icon;
-              return (
-                <button
-                  key={s.key}
-                  onClick={() => setStep(i)}
-                  className={cn(
-                    "clay-sm clay-press flex items-center gap-1.5 px-2.5 py-1.5 text-[11px] font-bold",
-                    step === i ? "text-[var(--clay-primary-deep)]" : "text-muted-foreground",
-                  )}
-                  style={step === i ? { background: "var(--clay-primary-tint)" } : undefined}
-                >
-                  <Icon className="size-3" /> {i + 1}. {s.label}
-                </button>
-              );
-            })}
+            {(() => {
+              let visibleIndex = 0;
+              return STEP_META.map((s, i) => {
+                const Icon = s.icon;
+                if (s.key === "derivation" && !concept.derivation) return null;
+                visibleIndex += 1;
+                return (
+                  <button
+                    key={s.key}
+                    onClick={() => setStep(i)}
+                    className={cn(
+                      "clay-sm clay-press flex items-center gap-1.5 px-2.5 py-1.5 text-[11px] font-bold",
+                      step === i ? "text-[var(--clay-primary-deep)]" : "text-muted-foreground",
+                    )}
+                    style={step === i ? { background: "var(--clay-primary-tint)" } : undefined}
+                  >
+                    <Icon className="size-3" /> {visibleIndex}. {s.label}
+                  </button>
+                );
+              });
+            })()}
           </div>
 
           <div className="min-h-[420px]">
-            {stepKey === "intuition" && (
+            {step === 0 && (
               <div className="clay p-6">
                 <h2 className="flex items-center gap-2 text-lg font-extrabold"><Lightbulb className="size-5 text-[#ffc46b]" /> What is really happening?</h2>
                 <p className="mt-3 leading-7 text-[15px]">{concept.intuition}</p>
@@ -326,7 +318,7 @@ export default function Lesson() {
               </div>
             )}
 
-            {stepKey === "visualize" && (
+            {step === 1 && (
               <div className="clay p-6">
                 <h2 className="flex items-center gap-2 text-lg font-extrabold"><Eye className="size-5 text-[var(--clay-4)]" /> Play with it</h2>
                 <p className="mt-2 text-sm text-muted-foreground">{concept.visualize}</p>
@@ -336,7 +328,7 @@ export default function Lesson() {
               </div>
             )}
 
-            {stepKey === "representation" && (
+            {step === 2 && (
               <div className="clay p-6">
                 <h2 className="flex items-center gap-2 text-lg font-extrabold"><PenTool className="size-5 text-[#6fd6c8]" /> How physicists draw it</h2>
                 <p className="mt-3 leading-7 text-[15px]">{concept.representation}</p>
@@ -346,7 +338,7 @@ export default function Lesson() {
               </div>
             )}
 
-            {stepKey === "mathMeaning" && (
+            {step === 3 && (
               <div className="clay p-6">
                 <h2 className="flex items-center gap-2 text-lg font-extrabold"><Sigma className="size-5 text-[var(--clay-4)]" /> What the equations mean</h2>
                 <p className="mt-3 leading-7 text-[15px]">{concept.mathMeaning}</p>
@@ -362,33 +354,32 @@ export default function Lesson() {
                     </div>
                   ))}
                 </div>
-                {concept.derivation && (
-                  <div className="clay-tint mt-5 p-4">
-                    <h3 className="flex items-center gap-2 text-sm font-extrabold">
-                      <FlaskConical className="size-4 text-[#ffc46b]" /> Derivation — where this comes from
-                    </h3>
-                    <div className="clay-eq mt-3 px-3 py-2 text-center"><M>{concept.derivation.tex}</M></div>
-                    <ol className="mt-3 space-y-2 text-sm">
-                      {concept.derivation.steps.map((s, i) => (
-                        <li key={i} className="flex gap-3">
-                          <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-[var(--clay-4)] text-[11px] font-bold text-white">{i + 1}</span>
-                          <span className="leading-6">{s}</span>
-                        </li>
-                      ))}
-                    </ol>
-                  </div>
-                )}
               </div>
             )}
 
-            {stepKey === "recognition" && (
+            {step === 4 && concept.derivation && (
+              <div className="clay p-6">
+                <h2 className="flex items-center gap-2 text-lg font-extrabold"><FlaskConical className="size-5 text-[#ffc46b]" /> Derivation — where this comes from</h2>
+                <Eq tex={concept.derivation.tex} className="mt-4" />
+                <ol className="mt-4 space-y-2 text-sm">
+                  {concept.derivation.steps.map((s, i) => (
+                    <li key={i} className="clay-sm flex gap-3 p-3">
+                      <span className="clay-sm flex h-6 w-6 shrink-0 items-center justify-center bg-[var(--clay-4)] text-[11px] font-bold text-white">{i + 1}</span>
+                      <span className="leading-6">{s}</span>
+                    </li>
+                  ))}
+                </ol>
+              </div>
+            )}
+
+            {step === 5 && (
               <div className="clay p-6">
                 <h2 className="flex items-center gap-2 text-lg font-extrabold"><Compass className="size-5 text-[#6fd6c8]" /> When to reach for this</h2>
                 <p className="mt-3 leading-7 text-[15px]">{concept.recognition}</p>
               </div>
             )}
 
-            {stepKey === "setup" && (
+            {step === 6 && (
               <div className="clay p-6">
                 <h2 className="flex items-center gap-2 text-lg font-extrabold"><Hammer className="size-5 text-[var(--clay-4)]" /> Setup ritual</h2>
                 <p className="mt-2 text-sm text-muted-foreground">Translate words into physics in this order, every time:</p>
@@ -403,15 +394,15 @@ export default function Lesson() {
               </div>
             )}
 
-            {stepKey === "guided" && guided && (
-              <ProblemPlayer problem={guided} conceptId={concept.id} label="Guided problem — hints encouraged" onNext={() => setStep((s) => Math.min(s + 1, totalSteps - 1))} />
+            {step === 7 && guided && (
+              <ProblemPlayer problem={guided} conceptId={concept.id} label="Guided problem — hints encouraged" onNext={() => setStep(8)} />
             )}
 
-            {stepKey === "independent" && independent && (
-              <ProblemPlayer problem={independent} conceptId={concept.id} label="Independent problem — no hints" allowHints={false} onNext={() => setStep((s) => Math.min(s + 1, totalSteps - 1))} />
+            {step === 8 && independent && (
+              <ProblemPlayer problem={independent} conceptId={concept.id} label="Independent problem — no hints" allowHints={false} onNext={() => setStep(9)} />
             )}
 
-            {stepKey === "conceptual" && (
+            {step === 9 && (
               <div className="clay p-6">
                 <h2 className="flex items-center gap-2 text-lg font-extrabold"><HelpCircle className="size-5 text-[#ffc46b]" /> Concept check</h2>
                 {cquestion ? (
@@ -432,11 +423,11 @@ export default function Lesson() {
               </div>
             )}
 
-            {stepKey === "transfer" && transfer && (
-              <ProblemPlayer problem={transfer} conceptId={concept.id} label="Transfer problem — same physics, new scene" onNext={() => setStep((s) => Math.min(s + 1, totalSteps - 1))} />
+            {step === 10 && transfer && (
+              <ProblemPlayer problem={transfer} conceptId={concept.id} label="Transfer problem — same physics, new scene" onNext={() => setStep(11)} />
             )}
 
-            {stepKey === "mastery" && (
+            {step === 11 && (
               <div className="clay p-6 text-center">
                 <Award className="mx-auto size-10 text-[#ffc46b]" />
                 <h2 className="mt-2 text-xl font-extrabold">Mastery check</h2>
@@ -511,8 +502,6 @@ export default function Lesson() {
 function ConceptCheck({ qid, onNext }: { qid: string; onNext: () => void }) {
   const q = CONCEPT_QUESTIONS[qid];
   const [picked, setPicked] = useState<number | null>(null);
-  // Reset when navigating to a different concept's check.
-  useEffect(() => setPicked(null), [qid]);
   if (!q) return <p className="mt-3 text-sm text-muted-foreground">Check coming soon.</p>;
   return (
     <div className="mt-4 space-y-2">
