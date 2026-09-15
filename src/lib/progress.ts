@@ -12,6 +12,8 @@ export type ErrorCategory =
   | "graph"
   | "calculus"
   | "assumption"
+  | "proportional"
+  | "experimental"
   | "experimental";
 
 export type DiagnosticState = {
