@@ -6,14 +6,17 @@ import { useMemo, useState } from "react";
 import { Link } from "react-router";
 import { ArrowRight, Stethoscope, Zap } from "lucide-react";
 import { filterQuestions, pickSmart, DIFFICULTY_LABELS, DIFFICULTY_ORDER, SKILL_LABELS, type QEntry, type Difficulty } from "@/data/qbank";
+import { COURSES, COURSE_MAP, type CourseId } from "@/data/curriculum";
 import { useProgress, progress, masteryOf } from "@/lib/progress";
 import { QDiagram } from "@/components/questions/Diagrams";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
 const LENGTHS = [
-  { id: "short", label: "Quick · 12 questions", n: 12 },
-  { id: "full", label: "Full · 24 questions", n: 24 },
+  { id: "quick", label: "Quick · 12 questions", n: 12, minutes: 18 },
+  { id: "standard", label: "Standard · 24 questions", n: 24, minutes: 36 },
+  { id: "full", label: "Full · 36 questions", n: 36, minutes: 54 },
+  { id: "custom", label: "Custom", n: 0, minutes: 0 },
 ] as const;
 
 type Answered = { q: QEntry; correct: boolean };
@@ -59,15 +62,21 @@ function LiveQuestion({ q, onDone }: { q: QEntry; onDone: (correct: boolean) => 
           <button
             key={i}
             disabled={checked}
+            aria-pressed={selected === i}
+            aria-label={`Choice ${"ABCD"[i]}${selected === i ? ", selected" : ""}`}
             onClick={() => setSelected(i)}
             className={cn(
-              "clay-sm clay-press px-4 py-3 text-left text-sm font-semibold",
-              selected === i && "ring-2 ring-[var(--clay-4)]",
+              "clay-sm clay-press flex items-start gap-3 border-2 px-4 py-3 text-left text-sm font-semibold transition-all duration-200",
+              selected === i && "border-[var(--clay-4)] bg-[var(--clay-primary-tint)] text-[var(--clay-primary-deep)] ring-2 ring-[var(--clay-4)] ring-offset-2 ring-offset-background scale-[1.01]",
+              selected !== i && "border-transparent",
               checked && i === q.correct && "ring-2 ring-[#5bbfa3]",
               checked && i === selected && i !== q.correct && "ring-2 ring-destructive",
             )}
           >
-            <span className="mr-2 text-muted-foreground">{"ABCD"[i]}.</span>{c}
+            <span className={cn("flex size-6 shrink-0 items-center justify-center rounded-full border-2 text-xs font-black", selected === i ? "border-[var(--clay-4)] bg-[var(--clay-4)] text-white" : "border-muted-foreground/40 text-muted-foreground")}>
+              {selected === i ? "✓" : "ABCD"[i]}
+            </span>
+            <span className="pt-0.5">{c}</span>
           </button>
         ))}
       </div>
@@ -113,15 +122,19 @@ function LiveQuestion({ q, onDone }: { q: QEntry; onDone: (correct: boolean) => 
 export default function ApDiagnostic() {
   const p = useProgress();
   const [phase, setPhase] = useState<"intro" | "run" | "report">("intro");
-  const [len, setLen] = useState<(typeof LENGTHS)[number]["id"]>("full");
+  const [len, setLen] = useState<(typeof LENGTHS)[number]["id"]>("standard");
+  const [customN, setCustomN] = useState(30);
+  const [courses, setCourses] = useState<CourseId[]>(["p1"]);
+  const [difficultyMode, setDifficultyMode] = useState<"mixed" | "easy-hard" | "standard" | "challenging" | "advanced">("mixed");
   const [plan, setPlan] = useState<string[]>([]); // topic per question index
   const [asked, setAsked] = useState<Answered[]>([]);
   const [currentQ, setCurrentQ] = useState<QEntry | null>(null);
 
-  const targetN = LENGTHS.find((l) => l.id === len)?.n ?? 24;
+  const targetN = len === "custom" ? customN : LENGTHS.find((l) => l.id === len)?.n ?? 24;
+  const toggleCourse = (courseId: CourseId) => setCourses((current) => current.includes(courseId) ? current.filter((id) => id !== courseId) : [...current, courseId]);
 
   const start = () => {
-    const bank = filterQuestions({});
+    const bank = filterQuestions({}).filter((q) => courses.includes(q.course));
     // Topic coverage plan: shuffle topics so each attempt differs.
     const topics = Array.from(new Set(bank.map((q) => q.topic))).sort(() => Math.random() - 0.5);
     const newPlan: string[] = [];
@@ -159,7 +172,12 @@ export default function ApDiagnostic() {
     // 25% challenging, and 15% advanced. Streaks may move one tier, but the
     // diagnostic never collapses into all-easy or all-hard questions.
     const fraction = history.length / Math.max(1, targetN);
-    let target: Difficulty = fraction < 0.2 ? "easy" : fraction < 0.6 ? "medium" : fraction < 0.85 ? "hard" : "ap";
+    let target: Difficulty = difficultyMode === "easy-hard"
+      ? (fraction < 0.5 ? "easy" : fraction < 0.8 ? "medium" : "hard")
+      : difficultyMode === "standard" ? "medium"
+        : difficultyMode === "challenging" ? "hard"
+          : difficultyMode === "advanced" ? "ap"
+            : fraction < 0.2 ? "easy" : fraction < 0.6 ? "medium" : fraction < 0.85 ? "hard" : "ap";
     const recent = history.slice(-3);
     if (recent.length >= 2) {
       const di = DIFFICULTY_ORDER.indexOf(target);
@@ -197,8 +215,12 @@ export default function ApDiagnostic() {
   const report = useMemo(() => {
     const bySkill = new Map<string, { c: number; t: number }>();
     const byTopic = new Map<string, { c: number; t: number }>();
+    const byCourse = new Map<string, { c: number; t: number }>();
     const misconceptions = new Map<string, number>();
     for (const { q, correct } of asked) {
+      const courseScore = byCourse.get(q.course) ?? { c: 0, t: 0 };
+      courseScore.t++; if (correct) courseScore.c++;
+      byCourse.set(q.course, courseScore);
       const s = bySkill.get(q.type) ?? { c: 0, t: 0 };
       s.t++; if (correct) s.c++;
       bySkill.set(q.type, s);
@@ -209,7 +231,7 @@ export default function ApDiagnostic() {
     }
     const sortKey = (m: Map<string, { c: number; t: number }>): [string, { c: number; t: number }][] =>
       Array.from(m.entries()).sort((a, b) => a[1].c / a[1].t - b[1].c / b[1].t);
-    return { skills: sortKey(bySkill), topics: sortKey(byTopic), misconceptions: [...misconceptions.entries()].sort((a, b) => b[1] - a[1]) };
+    return { courses: sortKey(byCourse), skills: sortKey(bySkill), topics: sortKey(byTopic), misconceptions: [...misconceptions.entries()].sort((a, b) => b[1] - a[1]) };
   }, [asked]);
 
   const weakTopics = report.topics.filter(([, v]) => v.c / v.t < 0.6).slice(0, 3);
@@ -227,6 +249,13 @@ export default function ApDiagnostic() {
           <p className="mt-1 text-sm text-muted-foreground">
             {correct} of {asked.length} correct ({pct}%) · difficulty adapted to your streaks during the run.
           </p>
+
+          <div className="mt-5">
+            <p className="text-xs font-extrabold uppercase tracking-wide text-muted-foreground">By course</p>
+            <div className="mt-2 grid gap-2 sm:grid-cols-2">
+              {report.courses.map(([courseId, value]) => { const cp = Math.round((value.c / value.t) * 100); return <div key={courseId} className="clay-sm p-3"><div className="flex justify-between text-xs font-bold"><span>{COURSE_MAP[courseId as CourseId]?.short ?? courseId}</span><span>{cp}%</span></div><div className="clay-inset mt-1.5 h-2"><div className="h-2 rounded-full bg-[var(--clay-4)]" style={{ width: `${Math.max(3, cp)}%` }} /></div></div>; })}
+            </div>
+          </div>
 
           <div className="mt-5 grid gap-5 md:grid-cols-2">
             <div>
@@ -352,35 +381,50 @@ export default function ApDiagnostic() {
     );
   }
 
-  // intro
+  // intro / configuration
+  const selectedTopics = Array.from(new Set(filterQuestions({}).filter((q) => courses.includes(q.course)).map((q) => q.topic)));
+  const selectedSkills = Array.from(new Set(filterQuestions({}).filter((q) => courses.includes(q.course)).flatMap((q) => q.type)));
+  const lengthMeta = LENGTHS.find((l) => l.id === len);
   return (
-    <div className="mx-auto max-w-2xl">
-      <div className="clay p-8 text-center">
-        <div className="mx-auto flex size-14 items-center justify-center rounded-2xl bg-[var(--clay-primary-tint)]">
-          <Stethoscope className="size-7 text-[var(--clay-primary-deep)]" />
+    <div className="mx-auto max-w-3xl">
+      <div className="clay p-6 md:p-8">
+        <div className="flex items-start gap-4">
+          <div className="flex size-14 shrink-0 items-center justify-center rounded-2xl bg-[var(--clay-primary-tint)]">
+            <Stethoscope className="size-7 text-[var(--clay-primary-deep)]" />
+          </div>
+          <div>
+            <h1 className="text-3xl font-extrabold tracking-tight">Configure your AP diagnostic</h1>
+            <p className="mt-2 max-w-xl text-sm leading-6 text-muted-foreground">Choose any course combination. Each attempt builds a fresh, coverage-aware assessment from original questions, diagrams, data, and AP science practices.</p>
+          </div>
         </div>
-        <h1 className="mt-4 text-3xl font-extrabold tracking-tight">AP-style diagnostic</h1>
-        <p className="mx-auto mt-3 max-w-lg text-sm leading-6 text-muted-foreground">
-          Every attempt is different: questions are drawn fresh from the bank across all four courses, difficulty adapts
-          to your streaks, and the report shows exactly which AP skills and topics need work.
-        </p>
-        <div className="mt-5 flex flex-wrap justify-center gap-2">
-          {LENGTHS.map((l) => (
-            <button
-              key={l.id}
-              onClick={() => setLen(l.id)}
-              className={cn("clay-sm clay-press px-4 py-2 text-sm font-bold", len === l.id && "ring-2 ring-[var(--clay-4)]")}
-            >
-              {l.label}
-            </button>
-          ))}
+
+        <section className="mt-7">
+          <p className="text-xs font-extrabold uppercase tracking-wide text-muted-foreground">Courses to assess</p>
+          <div className="mt-2 grid gap-2 sm:grid-cols-2">
+            {COURSES.map((course) => {
+              const selected = courses.includes(course.id);
+              return (
+                <button key={course.id} onClick={() => toggleCourse(course.id)} aria-pressed={selected} className={cn("clay-sm clay-press flex items-start gap-3 border-2 p-4 text-left transition-all", selected ? "border-[var(--clay-4)] bg-[var(--clay-primary-tint)] ring-2 ring-[var(--clay-4)]" : "border-transparent")}>
+                  <span className={cn("mt-0.5 flex size-6 shrink-0 items-center justify-center rounded-full border-2 text-xs font-black", selected ? "border-[var(--clay-4)] bg-[var(--clay-4)] text-white" : "border-muted-foreground/40 text-muted-foreground")}>{selected ? "✓" : ""}</span>
+                  <span><span className="block text-sm font-extrabold" style={{ color: selected ? course.color : undefined }}>{course.short}</span><span className="mt-1 block text-xs leading-5 text-muted-foreground">{course.math === "calculus" ? "Calculus-based" : "Algebra-based"} · {course.blurb}</span></span>
+                </button>
+              );
+            })}
+          </div>
+        </section>
+
+        <section className="mt-6 grid gap-4 sm:grid-cols-2">
+          <label className="text-xs font-bold"><span className="text-muted-foreground">Diagnostic length</span><select value={len} onChange={(e) => setLen(e.target.value as (typeof LENGTHS)[number]["id"])} className="clay-inset mt-1 w-full px-3 py-2.5 text-sm font-semibold outline-none">{LENGTHS.map((l) => <option key={l.id} value={l.id}>{l.label}{l.n ? ` · ${l.minutes} min` : ""}</option>)}</select></label>
+          {len === "custom" ? <label className="text-xs font-bold"><span className="text-muted-foreground">Questions: {customN}</span><input type="range" min={8} max={60} step={2} value={customN} onChange={(e) => setCustomN(Number(e.target.value))} className="mt-3 h-2 w-full" /></label> : <label className="text-xs font-bold"><span className="text-muted-foreground">Difficulty profile</span><select value={difficultyMode} onChange={(e) => setDifficultyMode(e.target.value as typeof difficultyMode)} className="clay-inset mt-1 w-full px-3 py-2.5 text-sm font-semibold outline-none"><option value="mixed">Mixed · adaptive coverage</option><option value="easy-hard">Easy → hard</option><option value="standard">Standard AP</option><option value="challenging">Challenging</option><option value="advanced">Advanced AP</option></select></label>}
+        </section>
+
+        <div className="clay-tint mt-6 grid gap-3 p-4 sm:grid-cols-3">
+          <div><p className="text-[10px] font-extrabold uppercase text-muted-foreground">Selected courses</p><p className="mt-1 text-sm font-black">{courses.length ? courses.map((id) => COURSE_MAP[id].short).join(" + ") : "None selected"}</p></div>
+          <div><p className="text-[10px] font-extrabold uppercase text-muted-foreground">Coverage</p><p className="mt-1 text-sm font-black">{targetN} questions · {selectedTopics.length} topics</p></div>
+          <div><p className="text-[10px] font-extrabold uppercase text-muted-foreground">AP skills</p><p className="mt-1 text-sm font-black">{selectedSkills.length} skill types</p></div>
         </div>
-        <p className="mt-4 text-xs text-muted-foreground">
-          Difficulty adapts only on streaks: 2+ correct in a row steps up, 2+ misses steps down — one answer never moves the needle.
-        </p>
-        <Button onClick={start} className="clay-btn clay-press mt-6 border-0 px-8 py-5 font-bold">
-          Start diagnostic <ArrowRight className="ml-1.5 size-4" />
-        </Button>
+        <p className="mt-4 text-xs leading-5 text-muted-foreground">Difficulty adapts only after rolling evidence: two or more correct answers move up one tier, while two or more misses move down one tier. A single answer never determines your level.</p>
+        <Button disabled={courses.length === 0} onClick={start} className="clay-btn clay-press mt-6 w-full border-0 py-5 font-bold"><Stethoscope className="mr-2 size-4" /> Start {targetN}-question diagnostic <ArrowRight className="ml-1.5 size-4" /></Button>
       </div>
     </div>
   );

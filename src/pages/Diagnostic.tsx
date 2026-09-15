@@ -143,13 +143,19 @@ export default function Diagnostic() {
           {q.choices.map((c, i) => (
             <button
               key={i}
+              aria-pressed={answers[idx] === i}
+              aria-label={`Choice ${"ABCD"[i]}${answers[idx] === i ? ", selected" : ""}`}
               onClick={() => setAnswers((a) => a.map((v, j) => (j === idx ? i : v)))}
               className={cn(
-                "clay-sm clay-press block w-full px-4 py-3 text-left text-sm font-semibold",
-                answers[idx] === i && "ring-2 ring-[var(--clay-4)]",
+                "clay-sm clay-press flex w-full items-start gap-3 border-2 px-4 py-3 text-left text-sm font-semibold transition-all duration-200",
+                answers[idx] === i && "border-[var(--clay-4)] bg-[var(--clay-primary-tint)] text-[var(--clay-primary-deep)] ring-2 ring-[var(--clay-4)] ring-offset-2 ring-offset-background scale-[1.01]",
+                answers[idx] !== i && "border-transparent",
               )}
             >
-              <span className="mr-2 text-muted-foreground">{"ABCD"[i]}.</span>{c}
+              <span className={cn("flex size-6 shrink-0 items-center justify-center rounded-full border-2 text-xs font-black", answers[idx] === i ? "border-[var(--clay-4)] bg-[var(--clay-4)] text-white" : "border-muted-foreground/40 text-muted-foreground")}>
+                {answers[idx] === i ? "✓" : "ABCD"[i]}
+              </span>
+              <span className="pt-0.5">{c}</span>
             </button>
           ))}
         </div>

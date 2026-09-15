@@ -459,7 +459,7 @@ export default function Labs() {
                   <div>
                     <p className="text-xs font-extrabold uppercase text-muted-foreground">3 · Experiment & data collection</p>
                     <div className="clay-inset mt-1 p-4">
-                      <LabRunner lab={l} data={allData[l.id]} onCollect={collect} />
+                      <LabRunner key={l.id} lab={l} data={allData[l.id]} onCollect={collect} />
                     </div>
                     {allData[l.id].trials.length > 0 && (
                       <table className="mt-3 w-full text-sm">

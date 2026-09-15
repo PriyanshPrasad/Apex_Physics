@@ -19,7 +19,7 @@ const STEP_META = [
   { key: "visualize", label: "Visualize", icon: Eye },
   { key: "representation", label: "Represent", icon: PenTool },
   { key: "mathMeaning", label: "Math meaning", icon: Sigma },
-  { key: "derivation", label: "Derivation", icon: FlaskConical },
+  { key: "derivation", label: "Setup & Solve", icon: Hammer },
   { key: "recognition", label: "Recognize", icon: Compass },
   { key: "setup", label: "Setup", icon: Hammer },
   { key: "guided", label: "Guided problem", icon: Target },
@@ -137,16 +137,21 @@ function ProblemPlayer({
           <button
             key={i}
             disabled={checked}
+            aria-pressed={selected === i}
+            aria-label={`Choice ${"ABCD"[i]}${selected === i ? ", selected" : ""}`}
             onClick={() => setSelected(i)}
             className={cn(
-              "clay-sm clay-press px-4 py-3 text-left text-sm font-semibold transition-colors",
-              selected === i && "ring-2 ring-[var(--clay-4)]",
+              "clay-sm clay-press flex items-start gap-3 border-2 px-4 py-3 text-left text-sm font-semibold transition-all duration-200",
+              selected === i && "border-[var(--clay-4)] bg-[var(--clay-primary-tint)] text-[var(--clay-primary-deep)] ring-2 ring-[var(--clay-4)] ring-offset-2 ring-offset-background scale-[1.01]",
+              selected !== i && "border-transparent",
               checked && i === problem.correct && "ring-2 ring-[#5bbfa3]",
               checked && i === selected && i !== problem.correct && "ring-2 ring-destructive",
             )}
           >
-            <span className="mr-2 text-muted-foreground">{"ABCD"[i]}.</span>
-            {c}
+            <span className={cn("flex size-6 shrink-0 items-center justify-center rounded-full border-2 text-xs font-black", selected === i ? "border-[var(--clay-4)] bg-[var(--clay-4)] text-white" : "border-muted-foreground/40 text-muted-foreground")}>
+              {selected === i ? "✓" : "ABCD"[i]}
+            </span>
+            <span className="pt-0.5">{c}</span>
           </button>
         ))}
       </div>
@@ -307,9 +312,7 @@ export default function Lesson() {
   const SimComp = concept.sim ? SIMS[concept.sim] : null;
   // Visible steps only — hidden derivation steps never receive a number,
   // and navigation clamps to visible steps so no step can render blank.
-  const visibleSteps = STEP_META
-    .map((s, i) => ({ ...s, rawIndex: i }))
-    .filter((s) => s.key !== "derivation" || !!concept.derivation);
+  const visibleSteps = STEP_META.map((s, i) => ({ ...s, rawIndex: i }));
   const totalSteps = visibleSteps.length;
   // step is a VISIBLE index; raw is the content-block index in the JSX below
   const clampedStep = Math.min(step, visibleSteps.length - 1);
@@ -573,17 +576,23 @@ function ConceptCheck({ qid, onNext }: { qid: string; onNext: () => void }) {
         <button
           key={i}
           disabled={picked !== null}
+          aria-pressed={picked === i}
+          aria-label={`Choice ${"ABCD"[i]}${picked === i ? ", selected" : ""}`}
           onClick={() => {
             setPicked(i);
             checkAnswer(qid, i === q.correct);
           }}
           className={cn(
-            "clay-sm clay-press block w-full px-4 py-3 text-left text-sm font-semibold",
-            picked === i && "ring-2 ring-[var(--clay-4)]",
+            "clay-sm clay-press flex w-full items-start gap-3 border-2 px-4 py-3 text-left text-sm font-semibold transition-all duration-200",
+            picked === i && "border-[var(--clay-4)] bg-[var(--clay-primary-tint)] text-[var(--clay-primary-deep)] ring-2 ring-[var(--clay-4)] ring-offset-2 ring-offset-background scale-[1.01]",
+            picked !== i && "border-transparent",
             picked !== null && i === q.correct && "ring-2 ring-[#5bbfa3]",
           )}
         >
-          {c}
+          <span className={cn("flex size-6 shrink-0 items-center justify-center rounded-full border-2 text-xs font-black", picked === i ? "border-[var(--clay-4)] bg-[var(--clay-4)] text-white" : "border-muted-foreground/40 text-muted-foreground")}>
+            {picked === i ? "✓" : "ABCD"[i]}
+          </span>
+          <span className="pt-0.5">{c}</span>
         </button>
       ))}
       {picked !== null && (

@@ -160,15 +160,21 @@ function QuestionCard({
           <button
             key={i}
             disabled={checked}
+            aria-pressed={selected === i}
+            aria-label={`Choice ${"ABCD"[i]}${selected === i ? ", selected" : ""}`}
             onClick={() => setSelected(i)}
             className={cn(
-              "clay-sm clay-press px-4 py-3 text-left text-sm font-semibold",
-              selected === i && "ring-2 ring-[var(--clay-4)]",
+              "clay-sm clay-press flex items-start gap-3 border-2 px-4 py-3 text-left text-sm font-semibold transition-all duration-200",
+              selected === i && "border-[var(--clay-4)] bg-[var(--clay-primary-tint)] text-[var(--clay-primary-deep)] ring-2 ring-[var(--clay-4)] ring-offset-2 ring-offset-background scale-[1.01]",
+              selected !== i && "border-transparent",
               checked && i === q.correct && "ring-2 ring-[#5bbfa3]",
               checked && i === selected && i !== q.correct && "ring-2 ring-destructive",
             )}
           >
-            <span className="mr-2 text-muted-foreground">{"ABCD"[i]}.</span>{c}
+            <span className={cn("flex size-6 shrink-0 items-center justify-center rounded-full border-2 text-xs font-black", selected === i ? "border-[var(--clay-4)] bg-[var(--clay-4)] text-white" : "border-muted-foreground/40 text-muted-foreground")}>
+              {selected === i ? "✓" : "ABCD"[i]}
+            </span>
+            <span className="pt-0.5">{c}</span>
           </button>
         ))}
       </div>
@@ -247,9 +253,16 @@ function QuestionCard({
 // ------------------------------------------------------------
 // Free-response bank (self-scored rubrics)
 // ------------------------------------------------------------
+const FRQ_RESOURCES: Record<CourseId, { label: string; url: string }> = {
+  p1: { label: "AP Physics 1 official past FRQs & scoring", url: "https://apcentral.collegeboard.org/courses/ap-physics-1/exam/past-exam-questions" },
+  p2: { label: "AP Physics 2 official past FRQs & scoring", url: "https://apcentral.collegeboard.org/courses/ap-physics-2/exam/past-exam-questions" },
+  cm: { label: "AP Physics C: Mechanics official past FRQs & scoring", url: "https://apcentral.collegeboard.org/courses/ap-physics-c-mechanics/exam/past-exam-questions" },
+  cem: { label: "AP Physics C: E&M official past FRQs & scoring", url: "https://apcentral.collegeboard.org/courses/ap-physics-c-electricity-and-magnetism/exam/past-exam-questions" },
+};
+
 const FREE_RESPONSE_TASKS = [
   {
-    id: "fr-energy", skill: "Qualitative/Quantitative Translation",
+    id: "fr-energy", course: "p1" as CourseId, skill: "Qualitative/Quantitative Translation",
     prompt: "A block slides down a frictionless ramp from height h, then along a rough horizontal surface (coefficient μₖ) and stops after distance d.",
     parts: [
       "Part A (reasoning): Explain why energy methods, not kinematics, are the efficient approach on the rough surface.",
@@ -264,7 +277,7 @@ const FREE_RESPONSE_TASKS = [
     ],
   },
   {
-    id: "fr-circuits", skill: "Experimental Design",
+    id: "fr-circuits", course: "p2" as CourseId, skill: "Experimental Design",
     prompt: "You have a battery, two resistors, an ammeter, a voltmeter, wires, and a switch. Design an experiment to determine an unknown resistance.",
     parts: [
       "Part A: State the measurements and how each meter must be connected.",
@@ -279,7 +292,7 @@ const FREE_RESPONSE_TASKS = [
     ],
   },
   {
-    id: "fr-momentum", skill: "Mathematical Routines",
+    id: "fr-momentum", course: "cm" as CourseId, skill: "Mathematical Routines",
     prompt: "Cart A (mass 2m) moves at speed v toward stationary cart B (mass m). They collide elastically.",
     parts: [
       "Part A: Write the two conservation equations that apply.",
@@ -294,7 +307,7 @@ const FREE_RESPONSE_TASKS = [
     ],
   },
   {
-    id: "fr-rc", skill: "Derivation (Physics C)",
+    id: "fr-rc", course: "cem" as CourseId, skill: "Derivation (Physics C)",
     prompt: "A capacitor C charged to V₀ discharges through resistor R starting at t = 0.",
     parts: [
       "Part A: Write the loop rule and the relation between I and dQ/dt (mind the sign).",
@@ -362,6 +375,9 @@ function FreeResponseCard({ task }: { task: (typeof FREE_RESPONSE_TASKS)[number]
 // ------------------------------------------------------------
 export default function Practice() {
   const p = useProgress();
+  const [frqCourse, setFrqCourse] = useState<CourseId>("p1");
+  const [frqYear, setFrqYear] = useState("2025");
+  const [frqMode, setFrqMode] = useState<"original" | "official">("original");
   const stats = bankStats();
   const [tab, setTab] = useState<"session" | "free" | "frq">("session");
 
@@ -515,10 +531,18 @@ export default function Practice() {
 
       {tab === "frq" ? (
         <div className="mt-5 space-y-4">
-          <p className="text-sm text-muted-foreground">
-            Free-response practice: write actual reasoning, then score yourself against the rubric — the same skill the AP exam grades.
-          </p>
-          {FREE_RESPONSE_TASKS.map((t) => <FreeResponseCard key={t.id} task={t} />)}
+          <div className="clay p-5">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div><p className="text-xs font-extrabold uppercase tracking-wide text-muted-foreground">Free response</p><h2 className="mt-1 text-2xl font-extrabold">Practice the AP response, not just the answer</h2><p className="mt-1 max-w-2xl text-sm leading-6 text-muted-foreground">Use original local prompts for guided practice, or open the official College Board archive for a selected course and year. Official copyrighted text stays on College Board.</p></div>
+              <div className="clay-sm flex overflow-hidden p-1"><button onClick={() => setFrqMode("original")} className={cn("px-3 py-1.5 text-xs font-bold", frqMode === "original" && "bg-[var(--clay-primary-tint)] text-[var(--clay-primary-deep)]")}>Original practice</button><button onClick={() => setFrqMode("official")} className={cn("px-3 py-1.5 text-xs font-bold", frqMode === "official" && "bg-[var(--clay-primary-tint)] text-[var(--clay-primary-deep)]")}>Official resources</button></div>
+            </div>
+            <div className="mt-5 grid gap-3 sm:grid-cols-3">
+              <label className="text-xs font-bold"><span className="text-muted-foreground">Course</span><select value={frqCourse} onChange={(e) => setFrqCourse(e.target.value as CourseId)} className="clay-inset mt-1 w-full px-3 py-2.5 text-sm font-semibold outline-none">{Object.values(COURSE_MAP).map((c) => <option key={c.id} value={c.id}>{c.short}</option>)}</select></label>
+              <label className="text-xs font-bold"><span className="text-muted-foreground">Year</span><select value={frqYear} onChange={(e) => setFrqYear(e.target.value)} className="clay-inset mt-1 w-full px-3 py-2.5 text-sm font-semibold outline-none">{["2025", "2024", "2023", "2022", "2021"].map((year) => <option key={year}>{year}</option>)}</select></label>
+              <div className="flex items-end"><a href={FRQ_RESOURCES[frqCourse].url} target="_blank" rel="noreferrer" className="clay-btn clay-press inline-flex w-full items-center justify-center px-4 py-2.5 text-xs font-bold">Open official {frqYear} archive <ArrowRight className="ml-1 size-3.5" /></a></div>
+            </div>
+          </div>
+          {frqMode === "official" ? <div className="clay-tint p-5"><p className="text-sm font-bold">{FRQ_RESOURCES[frqCourse].label}</p><p className="mt-1 text-sm leading-6 text-muted-foreground">The official archive provides the selected year’s released questions, scoring guidelines, sample responses, and scoring information.</p><a href={FRQ_RESOURCES[frqCourse].url} target="_blank" rel="noreferrer" className="mt-3 inline-flex items-center gap-1 text-sm font-bold text-[var(--clay-primary-deep)]">Open College Board resources <ArrowRight className="size-4" /></a></div> : FREE_RESPONSE_TASKS.filter((task) => task.course === frqCourse).map((t) => <FreeResponseCard key={t.id} task={t} />)}
         </div>
       ) : tab === "free" ? (
         <>
