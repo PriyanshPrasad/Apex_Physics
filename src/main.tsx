@@ -148,6 +148,8 @@ createRoot(document.getElementById("root")!).render(
                 <Route path="/learn" element={<LearnHome />} />
                 <Route path="/learn/:courseId" element={<CoursePage />} />
                 <Route path="/learn/:courseId/:conceptId" element={<Lesson />} />
+                <Route path="/courses" element={<LearnHome />} />
+                <Route path="/courses/:courseId" element={<CoursePage />} />
                 <Route path="/courses" element={<Courses />} />
                 <Route path="/courses/:courseId" element={<CourseDetail />} />
                 <Route path="/practice" element={<Practice />} />

@@ -5,7 +5,7 @@ import { M } from "@/components/math/Math";
 export type DiagramSpec =
   | { kind: "vgraph"; graph: "xt" | "vt" | "at"; shape: string; note?: string }
   | { kind: "fbd"; scene: "incline" | "table" | "hanging"; labels: string[] }
-  | { kind: "circuit"; layout: "series2" | "parallel2" | "rcMeter" | "batteryCapacitor"; labels: string[] }
+  | { kind: "circuit"; layout?: "series2" | "parallel2" | "rcMeter" | "batteryCapacitor"; labels?: string[]; note?: string }
   | { kind: "charges"; q: ("+" | "-")[]; note?: string }
   | { kind: "rayOptics"; lens: "converging" | "diverging"; objectSide: "outside-f" | "inside-f" }
   | { kind: "wave"; scene: "speakers" | "standing"; note?: string }
@@ -397,7 +397,7 @@ export function QDiagram({ spec }: { spec: DiagramSpec }) {
   switch (spec.kind) {
     case "vgraph": return <VGraph graph={spec.graph} shape={spec.shape} note={spec.note} />;
     case "fbd": return <FBD scene={spec.scene} labels={spec.labels} />;
-    case "circuit": return <Circuit layout={spec.layout} labels={spec.labels} />;
+    case "circuit": return <Circuit layout={spec.layout ?? "series2"} labels={spec.labels ?? []} />;
     case "charges": return <Charges q={spec.q} note={spec.note} />;
     case "rayOptics": return <RayOptics lens={spec.lens} objectSide={spec.objectSide} />;
     case "wave": return <WaveDiag scene={spec.scene} note={spec.note} />;

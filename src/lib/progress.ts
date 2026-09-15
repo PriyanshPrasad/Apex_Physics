@@ -11,7 +11,8 @@ export type ErrorCategory =
   | "unit"
   | "graph"
   | "calculus"
-  | "assumption";
+  | "assumption"
+  | "experimental";
 
 export type DiagnosticState = {
   completed: boolean;

@@ -54,7 +54,7 @@ export interface Archetype {
   conceptId: string;
   difficulty: Difficulty;
   type: QuestionType;
-  skill: string;
+  skill?: string;
   gen: (r: Rng) => RawQ;
 }
 

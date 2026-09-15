@@ -305,7 +305,16 @@ export default function Lesson() {
   const course = COURSE_MAP[concept.courseId];
   const unit = UNITS.find((u) => u.course === concept.courseId && u.num === concept.unit);
   const SimComp = concept.sim ? SIMS[concept.sim] : null;
-  const totalSteps = concept.derivation ? STEP_META.length : STEP_META.length - 1;
+  // Visible steps only — hidden derivation steps never receive a number,
+  // and navigation clamps to visible steps so no step can render blank.
+  const visibleSteps = STEP_META
+    .map((s, i) => ({ ...s, rawIndex: i }))
+    .filter((s) => s.key !== "derivation" || !!concept.derivation);
+  const totalSteps = visibleSteps.length;
+  // step is a VISIBLE index; raw is the content-block index in the JSX below
+  const clampedStep = Math.min(step, visibleSteps.length - 1);
+  const raw = visibleSteps[clampedStep]?.rawIndex ?? 0;
+  const goToRaw = (r: number) => setStep(Math.max(0, visibleSteps.findIndex((s) => s.rawIndex === r)));
 
   return (
     <div className="mx-auto max-w-7xl">
@@ -345,33 +354,28 @@ export default function Lesson() {
 
         {/* MAIN — the 12 steps */}
         <div className="min-w-0 space-y-5">
-          {/* step pills — derivation is hidden when a concept has none, and numbering stays gapless */}
+          {/* step pills — only visible steps, gapless numbering, navigation by pill */}
           <div className="flex flex-wrap gap-1.5">
-            {(() => {
-              let visibleIndex = 0;
-              return STEP_META.map((s, i) => {
-                const Icon = s.icon;
-                if (s.key === "derivation" && !concept.derivation) return null;
-                visibleIndex += 1;
-                return (
-                  <button
-                    key={s.key}
-                    onClick={() => setStep(i)}
-                    className={cn(
-                      "clay-sm clay-press flex items-center gap-1.5 px-2.5 py-1.5 text-[11px] font-bold",
-                      step === i ? "text-[var(--clay-primary-deep)]" : "text-muted-foreground",
-                    )}
-                    style={step === i ? { background: "var(--clay-primary-tint)" } : undefined}
-                  >
-                    <Icon className="size-3" /> {visibleIndex}. {s.label}
-                  </button>
-                );
-              });
-            })()}
+            {visibleSteps.map((s, vi) => {
+              const Icon = s.icon;
+              return (
+                <button
+                  key={s.key}
+                  onClick={() => setStep(vi)}
+                  className={cn(
+                    "clay-sm clay-press flex items-center gap-1.5 px-2.5 py-1.5 text-[11px] font-bold",
+                    step === vi ? "text-[var(--clay-primary-deep)]" : "text-muted-foreground",
+                  )}
+                  style={step === vi ? { background: "var(--clay-primary-tint)" } : undefined}
+                >
+                  <Icon className="size-3" /> {vi + 1}. {s.label}
+                </button>
+              );
+            })}
           </div>
 
           <div className="min-h-[420px]">
-            {step === 0 && (
+            {raw === 0 && (
               <div className="clay p-6">
                 <h2 className="flex items-center gap-2 text-lg font-extrabold"><Lightbulb className="size-5 text-[#ffc46b]" /> What is really happening?</h2>
                 <p className="mt-3 leading-7 text-[15px]">{concept.intuition}</p>
@@ -391,7 +395,7 @@ export default function Lesson() {
               </div>
             )}
 
-            {step === 1 && (
+            {raw === 1 && (
               <div className="clay p-6">
                 <h2 className="flex items-center gap-2 text-lg font-extrabold"><Eye className="size-5 text-[var(--clay-4)]" /> Play with it</h2>
                 <p className="mt-2 text-sm text-muted-foreground">{concept.visualize}</p>
@@ -401,7 +405,7 @@ export default function Lesson() {
               </div>
             )}
 
-            {step === 2 && (
+            {raw === 2 && (
               <div className="clay p-6">
                 <h2 className="flex items-center gap-2 text-lg font-extrabold"><PenTool className="size-5 text-[#6fd6c8]" /> How physicists draw it</h2>
                 <p className="mt-3 leading-7 text-[15px]">{concept.representation}</p>
@@ -411,7 +415,7 @@ export default function Lesson() {
               </div>
             )}
 
-            {step === 3 && (
+            {raw === 3 && (
               <div className="clay p-6">
                 <h2 className="flex items-center gap-2 text-lg font-extrabold"><Sigma className="size-5 text-[var(--clay-4)]" /> What the equations mean</h2>
                 <p className="mt-3 leading-7 text-[15px]">{concept.mathMeaning}</p>
@@ -430,16 +434,16 @@ export default function Lesson() {
               </div>
             )}
 
-            {step === 4 && <MathSetupStep concept={concept} />}
+            {raw === 4 && <MathSetupStep concept={concept} />}
 
-            {step === 5 && (
+            {raw === 5 && (
               <div className="clay p-6">
                 <h2 className="flex items-center gap-2 text-lg font-extrabold"><Compass className="size-5 text-[#6fd6c8]" /> When to reach for this</h2>
                 <p className="mt-3 leading-7 text-[15px]">{concept.recognition}</p>
               </div>
             )}
 
-            {step === 6 && (
+            {raw === 6 && (
               <div className="clay p-6">
                 <h2 className="flex items-center gap-2 text-lg font-extrabold"><Hammer className="size-5 text-[var(--clay-4)]" /> Setup ritual</h2>
                 <p className="mt-2 text-sm text-muted-foreground">Translate words into physics in this order, every time:</p>
@@ -454,28 +458,28 @@ export default function Lesson() {
               </div>
             )}
 
-            {step === 7 && guided && (
-              <ProblemPlayer problem={guided} conceptId={concept.id} label="Guided problem — hints encouraged" onNext={() => setStep(8)} />
+            {raw === 7 && guided && (
+              <ProblemPlayer problem={guided} conceptId={concept.id} label="Guided problem — hints encouraged" onNext={() => goToRaw(8)} />
             )}
 
-            {step === 8 && independent && (
-              <ProblemPlayer problem={independent} conceptId={concept.id} label="Independent problem — no hints" allowHints={false} onNext={() => setStep(9)} />
+            {raw === 8 && independent && (
+              <ProblemPlayer problem={independent} conceptId={concept.id} label="Independent problem — no hints" allowHints={false} onNext={() => goToRaw(9)} />
             )}
 
-            {step === 9 && (
+            {raw === 9 && (
               <div className="clay p-6">
                 <h2 className="flex items-center gap-2 text-lg font-extrabold"><HelpCircle className="size-5 text-[#ffc46b]" /> Concept check</h2>
                 {cquestion ? (
                   <>
                     <p className="mt-3 text-[15px] leading-7">{cquestion.prompt}</p>
-                    <ConceptCheck qid={concept.id} onNext={() => setStep(10)} />
+                    <ConceptCheck qid={concept.id} onNext={() => goToRaw(10)} />
                   </>
                 ) : (
                   <>
                     <p className="mt-3 text-sm text-muted-foreground">
                       Explain {concept.name} to an imaginary classmate in two sentences — no equations allowed. If you can, you understand it; if you can't, revisit the intuition and representation steps.
                     </p>
-                    <button onClick={() => setStep(10)} className="clay-btn clay-press mt-4 px-5 py-2.5 text-sm font-bold">
+                    <button onClick={() => goToRaw(10)} className="clay-btn clay-press mt-4 px-5 py-2.5 text-sm font-bold">
                       I can explain it — continue
                     </button>
                   </>
@@ -483,11 +487,11 @@ export default function Lesson() {
               </div>
             )}
 
-            {step === 10 && transfer && (
-              <ProblemPlayer problem={transfer} conceptId={concept.id} label="Transfer problem — same physics, new scene" onNext={() => setStep(11)} />
+            {raw === 10 && transfer && (
+              <ProblemPlayer problem={transfer} conceptId={concept.id} label="Transfer problem — same physics, new scene" onNext={() => goToRaw(11)} />
             )}
 
-            {step === 11 && (
+            {raw === 11 && (
               <div className="clay p-6 text-center">
                 <Award className="mx-auto size-10 text-[#ffc46b]" />
                 <h2 className="mt-2 text-xl font-extrabold">Mastery check</h2>
