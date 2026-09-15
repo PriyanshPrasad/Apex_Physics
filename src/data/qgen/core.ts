@@ -10,6 +10,47 @@ export type QuestionType =
   | "conceptual" | "quantitative" | "graph" | "diagram" | "experimental"
   | "representation" | "equation-selection" | "proportional-reasoning";
 
+export type APSkill =
+  | "conceptual-reasoning"
+  | "mathematical-routines"
+  | "creating-representations"
+  | "graphical-analysis"
+  | "experimental-design"
+  | "data-analysis"
+  | "representation-translation"
+  | "model-selection"
+  | "conservation-reasoning"
+  | "proportional-reasoning"
+  | "qualitative-quantitative-translation";
+
+export type Representation = "written-description" | "equation" | "graph" | "diagram" | "table" | "data" | "circuit" | "pv-diagram";
+export type ResponseType = "multiple-choice" | "numerical-response" | "qualitative-response" | "graph-selection" | "diagram-selection" | "experimental-analysis" | "representation-translation" | "multi-part";
+
+export const AP_SKILL_LABELS: Record<APSkill, string> = {
+  "conceptual-reasoning": "Conceptual reasoning",
+  "mathematical-routines": "Mathematical routines",
+  "creating-representations": "Creating representations",
+  "graphical-analysis": "Graphical analysis",
+  "experimental-design": "Experimental design",
+  "data-analysis": "Data analysis",
+  "representation-translation": "Representation translation",
+  "model-selection": "Model selection",
+  "conservation-reasoning": "Conservation reasoning",
+  "proportional-reasoning": "Proportional reasoning",
+  "qualitative-quantitative-translation": "Qualitative/quantitative translation",
+};
+
+export const REPRESENTATION_LABELS: Record<Representation, string> = {
+  "written-description": "Written description",
+  equation: "Equation",
+  graph: "Graph",
+  diagram: "Diagram",
+  table: "Table",
+  data: "Data",
+  circuit: "Circuit diagram",
+  "pv-diagram": "P–V diagram",
+};
+
 export const DIFFICULTY_LABELS: Record<Difficulty, string> = {
   easy: "Easy · Foundation",
   medium: "Medium · Standard AP",
@@ -73,6 +114,13 @@ export interface RawQ {
   commonMistake: string;
   apStrategy: string;
   category?: ErrorCategory;
+  /** Optional authoring metadata; qbank derives safe defaults when omitted. */
+  subtopic?: string;
+  skills?: APSkill[];
+  representations?: Representation[];
+  prerequisites?: string[];
+  responseType?: ResponseType;
+  solutionSteps?: string[];
 }
 
 export interface Archetype {
@@ -84,6 +132,11 @@ export interface Archetype {
   difficulty: Difficulty;
   type: QuestionType;
   skill?: string;
+  subtopic?: string;
+  skills?: APSkill[];
+  representations?: Representation[];
+  prerequisites?: string[];
+  responseType?: ResponseType;
   /** Stimulus-set membership: archetypes sharing this key describe the same scenario per variant. */
   shared?: string;
   /** Stimulus shown above the prompt (shared across the set; regenerated per variant). */

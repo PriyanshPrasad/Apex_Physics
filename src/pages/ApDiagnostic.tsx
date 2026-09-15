@@ -155,14 +155,16 @@ export default function ApDiagnostic() {
     const askedIds = new Set(history.map((h) => h.q.id));
     const fresh = pool.filter((q) => !askedIds.has(q.id));
     if (fresh.length > 0) pool = fresh;
-    // Adaptive difficulty — only after 2+ answers in a row agree.
-    let target: Difficulty = "medium";
+    // Baseline distribution is approximately 20% foundation, 40% standard,
+    // 25% challenging, and 15% advanced. Streaks may move one tier, but the
+    // diagnostic never collapses into all-easy or all-hard questions.
+    const fraction = history.length / Math.max(1, targetN);
+    let target: Difficulty = fraction < 0.2 ? "easy" : fraction < 0.6 ? "medium" : fraction < 0.85 ? "hard" : "ap";
     const recent = history.slice(-3);
     if (recent.length >= 2) {
-      const di = DIFFICULTY_ORDER.indexOf(recent[recent.length - 1].q.difficulty);
+      const di = DIFFICULTY_ORDER.indexOf(target);
       if (recent.every((h) => h.correct)) target = DIFFICULTY_ORDER[Math.min(4, di + 1)];
-      else if (recent.every((h) => !h.correct)) target = stepDown(recent[recent.length - 1].q.difficulty);
-      else target = recent[recent.length - 1].q.difficulty;
+      else if (recent.every((h) => !h.correct)) target = stepDown(target);
     }
     const ti = DIFFICULTY_ORDER.indexOf(target);
     for (let off = 0; off < DIFFICULTY_ORDER.length; off++) {
@@ -195,6 +197,7 @@ export default function ApDiagnostic() {
   const report = useMemo(() => {
     const bySkill = new Map<string, { c: number; t: number }>();
     const byTopic = new Map<string, { c: number; t: number }>();
+    const misconceptions = new Map<string, number>();
     for (const { q, correct } of asked) {
       const s = bySkill.get(q.type) ?? { c: 0, t: 0 };
       s.t++; if (correct) s.c++;
@@ -202,13 +205,14 @@ export default function ApDiagnostic() {
       const t = byTopic.get(q.topic) ?? { c: 0, t: 0 };
       t.t++; if (correct) t.c++;
       byTopic.set(q.topic, t);
+      if (!correct && q.category) misconceptions.set(q.category, (misconceptions.get(q.category) ?? 0) + 1);
     }
     const sortKey = (m: Map<string, { c: number; t: number }>): [string, { c: number; t: number }][] =>
       Array.from(m.entries()).sort((a, b) => a[1].c / a[1].t - b[1].c / b[1].t);
-    return { skills: sortKey(bySkill), topics: sortKey(byTopic) };
+    return { skills: sortKey(bySkill), topics: sortKey(byTopic), misconceptions: [...misconceptions.entries()].sort((a, b) => b[1] - a[1]) };
   }, [asked]);
 
-  const weakTopics = report.topics.filter(([topic, v]) => v.c / v.t < 0.6).slice(0, 3);
+  const weakTopics = report.topics.filter(([, v]) => v.c / v.t < 0.6).slice(0, 3);
 
   // ------------------------------------------------------------
   // Phases
@@ -264,6 +268,16 @@ export default function ApDiagnostic() {
               </div>
             </div>
           </div>
+
+          {report.misconceptions.length > 0 && (
+            <div className="clay-tint mt-6 p-5">
+              <h2 className="flex items-center gap-2 text-lg font-extrabold"><Stethoscope className="size-5" /> Likely misconception signals</h2>
+              <p className="mt-2 text-sm leading-6 text-muted-foreground">These are patterns in missed questions, not diagnoses. Practice the same idea through a different representation.</p>
+              <div className="mt-3 flex flex-wrap gap-2">
+                {report.misconceptions.slice(0, 5).map(([category, count]) => <span key={category} className="clay-sm px-3 py-1.5 text-xs font-bold">{category.split("-").join(" ")} · {count} misses</span>)}
+              </div>
+            </div>
+          )}
 
           <div className="clay-tint mt-6 p-5">
             <h2 className="flex items-center gap-2 text-lg font-extrabold"><Zap className="size-5" /> What to do next</h2>

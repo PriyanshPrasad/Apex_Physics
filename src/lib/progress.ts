@@ -35,6 +35,7 @@ export type ProgressState = {
   completedLessons: Record<string, number>; // lessonId -> percent (0-100)
   conceptMastery: Record<string, number>; // conceptId -> percent
   skillMastery: Record<string, number>; // topic::questionType -> percent
+  difficultyMastery: Record<string, number>; // difficulty tier -> percent
   attempts: Record<string, number>; // conceptId -> count
   errors: { id: string; conceptId: string; category: ErrorCategory; at: number }[];
   streak: number;
@@ -54,6 +55,7 @@ const initial: ProgressState = {
   completedLessons: {},
   conceptMastery: {},
   skillMastery: {},
+  difficultyMastery: {},
   attempts: {},
   errors: [],
   streak: 0,
@@ -135,9 +137,13 @@ export const progress = {
     const skillKey = meta?.skill;
     const previousSkill = skillKey ? state.skillMastery[skillKey] ?? 25 : 0;
     const nextSkill = skillKey ? Math.max(0, Math.min(100, previousSkill + (quality * 100 - previousSkill) * 0.22)) : 0;
+    const difficultyKey = meta?.difficulty;
+    const previousDifficulty = difficultyKey ? state.difficultyMastery[difficultyKey] ?? 25 : 0;
+    const nextDifficulty = difficultyKey ? Math.max(0, Math.min(100, previousDifficulty + (quality * 100 - previousDifficulty) * 0.22)) : 0;
     set((s) => ({
       conceptMastery: { ...s.conceptMastery, [conceptId]: Math.round(next) },
       ...(skillKey ? { skillMastery: { ...s.skillMastery, [skillKey]: Math.round(nextSkill) } } : {}),
+      ...(difficultyKey ? { difficultyMastery: { ...s.difficultyMastery, [difficultyKey]: Math.round(nextDifficulty) } } : {}),
       attempts: { ...s.attempts, [conceptId]: (s.attempts[conceptId] ?? 0) + 1 },
       questionsAnswered: s.questionsAnswered + 1,
       problemsCompleted: s.problemsCompleted + (correct ? 1 : 0),

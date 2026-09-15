@@ -15,14 +15,14 @@ import { EM } from "@/data/qgen/em";
 import { CALC } from "@/data/qgen/calc";
 import { RC } from "@/data/qgen/rc";
 import { THERMO } from "@/data/qgen/thermo";
-import type { Difficulty, QuestionType } from "@/data/qgen/core";
+import type { APSkill, Difficulty, QuestionType, Representation, ResponseType } from "@/data/qgen/core";
 import type { StimulusSpec, StimulusRender } from "@/data/qgen/core";
 export type { StimulusSpec, StimulusRender } from "@/data/qgen/core";
 import { stimRender, type RawQ } from "@/data/qgen/core";
 
 export type { Difficulty, QuestionType, BankQuestion, BankFilters };
-export { DIFFICULTY_LABELS, DIFFICULTY_ORDER, SKILL_LABELS } from "@/data/qgen/core";
-import { DIFFICULTY_LABELS, DIFFICULTY_ORDER, SKILL_LABELS } from "@/data/qgen/core";
+export { AP_SKILL_LABELS, DIFFICULTY_LABELS, DIFFICULTY_ORDER, REPRESENTATION_LABELS, SKILL_LABELS } from "@/data/qgen/core";
+export type { APSkill, Representation, ResponseType };
 
 // ------------------------------------------------------------
 // Archetype registry: materialize N variants of each archetype
@@ -76,6 +76,13 @@ export interface QEntry extends BankQuestion {
   tempt?: (string | undefined)[];
   /** AP-style stimulus (shared scenario) rendered above the prompt when present. */
   stimulusRender?: StimulusRender;
+  stimulusId?: string;
+  responseType: ResponseType;
+  solutionSteps: string[];
+  subtopic: string;
+  skills: APSkill[];
+  representations: Representation[];
+  prerequisites: string[];
 }
 
 // ------------------------------------------------------------
@@ -101,15 +108,83 @@ function validateRaw(archId: string, raw: RawQ): string | null {
   if (raw.tempt) {
     if (!Array.isArray(raw.tempt) || raw.tempt.length !== 4) return "tempt must align with 4 choices";
     if (typeof raw.tempt[raw.correct] !== "undefined") return "tempt set for the CORRECT choice";
+    if (raw.tempt.some((t, i) => i !== raw.correct && (typeof t !== "string" || t.trim().length < 8))) return "each distractor needs a misconception explanation";
+  }
+  if (raw.stimulus) {
+    if (raw.stimulus.blurb.trim().length < 20) return "stimulus blurb missing/too short";
+    if (raw.stimulus.kind === "table" && (raw.stimulus.headers.length < 2 || raw.stimulus.rows.length < 2)) return "stimulus table needs headers and data rows";
+    if (raw.stimulus.kind === "pv" && raw.stimulus.points.length < 2) return "P–V stimulus needs at least two points";
   }
   return null;
+}
+
+function deriveSkills(q: { type: QuestionType; conceptId: string; diagram?: unknown; stimulus?: StimulusSpec }): APSkill[] {
+  const skills = new Set<APSkill>();
+  if (q.type === "conceptual") skills.add("conceptual-reasoning");
+  if (q.type === "quantitative") skills.add("mathematical-routines");
+  if (q.type === "graph") skills.add("graphical-analysis");
+  if (q.type === "diagram") skills.add("creating-representations");
+  if (q.type === "experimental") { skills.add("experimental-design"); skills.add("data-analysis"); }
+  if (q.type === "representation") skills.add("representation-translation");
+  if (q.type === "equation-selection") skills.add("model-selection");
+  if (q.type === "proportional-reasoning") skills.add("proportional-reasoning");
+  if (q.type === "quantitative" || q.type === "equation-selection" || q.type === "representation") skills.add("qualitative-quantitative-translation");
+  if (/energy|momentum|collision|conservation|gauss|kirchhoff|induction/i.test(q.conceptId)) skills.add("conservation-reasoning");
+  if (q.diagram || q.stimulus) skills.add("creating-representations");
+  return [...skills];
+}
+
+function deriveSubtopic(id: string, topic: string): string {
+  const key = id.toLowerCase();
+  const rules: [RegExp, string][] = [
+    [/graph|vt|xt|at|piecewise/, "Motion graphs"],
+    [/projectile/, "Projectile motion"],
+    [/relative/, "Relative motion"],
+    [/fbd|force|newton|elevator|incline|friction|circular/, "Forces and models"],
+    [/work|energy|power|ramp/, "Work and energy"],
+    [/momentum|collision/, "Momentum and collisions"],
+    [/torque|rot|rolling|angular/, "Rotation"],
+    [/shm|oscill/, "Oscillations"],
+    [/fluid|buoy|pressure|continuity/, "Fluids"],
+    [/thermo|gas|heat|entropy|pv/, "Thermodynamic processes"],
+    [/rc/, "RC circuits"],
+    [/capacitor|dielectric/, "Capacitors"],
+    [/gauss|charge|field|potential|coulomb/, "Fields and potential"],
+    [/magnet|ampere|induction|faraday|lenz/, "Magnetism and induction"],
+    [/lens|optic|ray|wave/, "Waves and optics"],
+    [/calc|deriv|integral|diff/, "Calculus relationships"],
+  ];
+  return rules.find(([pattern]) => pattern.test(key))?.[1] ?? topic;
+}
+
+function deriveRepresentations(q: { type: QuestionType; diagram?: { kind?: string }; stimulus?: StimulusSpec }): Representation[] {
+  const reps = new Set<Representation>(["written-description"]);
+  if (q.type === "graph") reps.add("graph");
+  if (q.type === "diagram" || q.diagram) reps.add("diagram");
+  if (q.type === "quantitative" || q.type === "equation-selection") reps.add("equation");
+  if (q.type === "experimental") { reps.add("data"); reps.add("table"); }
+  if (q.type === "representation") reps.add("equation");
+  if (q.diagram?.kind === "circuit") reps.add("circuit");
+  if (q.diagram?.kind === "pv" || q.stimulus?.kind === "pv") reps.add("pv-diagram");
+  if (q.stimulus?.kind === "table") { reps.add("table"); reps.add("data"); }
+  return [...reps];
 }
 
 let cache: QEntry[] | null = null;
 
 export function getBank(): QEntry[] {
   if (cache) return cache;
-  const out: QEntry[] = BANK.map((q) => ({ ...q, source: "hand" as const }));
+  const out: QEntry[] = BANK.map((q) => ({
+    ...q,
+    source: "hand" as const,
+    subtopic: deriveSubtopic(q.id, q.topic),
+    skills: deriveSkills({ type: q.type, conceptId: q.conceptId, diagram: q.diagram }),
+    representations: deriveRepresentations({ type: q.type, diagram: q.diagram }),
+    prerequisites: q.prereqIds,
+    responseType: "multiple-choice",
+    solutionSteps: ["Identify the physical model and the quantity being asked for.", q.apStrategy, q.explanation],
+    tempt: q.choices.map((_, index) => index === q.correct ? undefined : `This choice reflects a common mistake: ${q.commonMistake}`),
+  }));
   const seenPrompts = new Set(out.map((q) => q.prompt.trim()));
   for (const arch of ARCHETYPES) {
     for (let v = 0; v < VARIANT_DEPTH; v++) {
@@ -166,13 +241,20 @@ export function getBank(): QEntry[] {
         equations: raw.equations ?? [],
         commonMistake: raw.commonMistake ?? "",
         apStrategy: raw.apStrategy ?? "",
-        prereqIds: [arch.conceptId],
+        prereqIds: raw.prerequisites ?? arch.prerequisites ?? [arch.conceptId],
         category: raw.category,
+        subtopic: raw.subtopic ?? arch.subtopic ?? deriveSubtopic(arch.id, arch.topic),
+        skills: raw.skills ?? arch.skills ?? deriveSkills({ type: arch.type, conceptId: arch.conceptId, diagram: raw.diagram, stimulus: stimSpec }),
+        representations: raw.representations ?? arch.representations ?? deriveRepresentations({ type: arch.type, diagram: raw.diagram, stimulus: stimSpec }),
+        prerequisites: raw.prerequisites ?? arch.prerequisites ?? [arch.conceptId],
         source: "gen",
         archetypeId: arch.id,
         variantSeed: setSeed,
         tempt: raw.tempt,
         stimulusRender: stimSpec ? stimRender(stimSpec) : undefined,
+        stimulusId: stimSpec ? `${arch.shared ?? arch.id}#${v}` : undefined,
+        responseType: raw.responseType ?? "multiple-choice",
+        solutionSteps: raw.solutionSteps ?? ["Identify the system and known information.", raw.apStrategy, raw.explanation],
       });
     }
   }
@@ -192,8 +274,12 @@ export interface QFilters {
   course?: CourseId | "any";
   unit?: number | "any";
   topic?: string | "any";
+  subtopic?: string | "any";
   difficulty?: Difficulty | "any";
   type?: QuestionType | "any";
+  skill?: APSkill | "any";
+  representation?: Representation | "any";
+  prerequisite?: string | "any";
   conceptId?: string;
 }
 
@@ -202,8 +288,12 @@ export function filterQuestions(f: QFilters): QEntry[] {
     if (f.course && f.course !== "any" && q.course !== f.course) return false;
     if (f.unit !== undefined && f.unit !== "any" && q.unit !== f.unit) return false;
     if (f.topic && f.topic !== "any" && q.topic !== f.topic) return false;
+    if (f.subtopic && f.subtopic !== "any" && q.subtopic !== f.subtopic) return false;
     if (f.difficulty && f.difficulty !== "any" && q.difficulty !== f.difficulty) return false;
     if (f.type && f.type !== "any" && q.type !== f.type) return false;
+    if (f.skill && f.skill !== "any" && !q.skills.includes(f.skill)) return false;
+    if (f.representation && f.representation !== "any" && !q.representations.includes(f.representation)) return false;
+    if (f.prerequisite && f.prerequisite !== "any" && !q.prerequisites.includes(f.prerequisite)) return false;
     if (f.conceptId && q.conceptId !== f.conceptId) return false;
     return true;
   });
@@ -246,7 +336,6 @@ export function pickSmart(
   rand: () => number = Math.random,
 ): QEntry | null {
   if (pool.length === 0) return null;
-  const now = Date.now();
   const weights = pool.map((q) => {
     let w = 1;
     if (!ctx.seen.has(q.id)) w *= 2.2; // prefer fresh questions
@@ -263,33 +352,40 @@ export function pickSmart(
   return pool[pool.length - 1];
 }
 
-/** Balanced set builder: spreads across topics and difficulties. */
+/**
+ * Construct an intentional session instead of drawing independently.
+ * The greedy score rewards fresh/weak questions, then penalizes repeating an
+ * archetype, representation, or target topic already used in the session.
+ */
 export function buildSet(pool: QEntry[], n: number, ctx: SelectionCtx): QEntry[] {
   const out: QEntry[] = [];
   const remaining = [...pool];
-  // group by topic to guarantee coverage
-  const byTopic = new Map<string, QEntry[]>();
-  for (const q of remaining) {
-    const list = byTopic.get(q.topic) ?? [];
-    list.push(q);
-    byTopic.set(q.topic, list);
-  }
-  const topics = [...byTopic.keys()];
-  while (out.length < n && topics.length > 0) {
-    for (let ti = 0; ti < topics.length && out.length < n; ti++) {
-      const list = byTopic.get(topics[ti]);
-      if (!list || list.length === 0) continue;
-      const picked = pickSmart(list, ctx);
-      if (picked) {
-        out.push(picked);
-        list.splice(list.indexOf(picked), 1);
-      }
+  while (out.length < n && remaining.length > 0) {
+    const topicCounts = new Map<string, number>();
+    const archetypeCounts = new Map<string, number>();
+    const repCounts = new Map<string, number>();
+    for (const q of out) {
+      topicCounts.set(q.topic, (topicCounts.get(q.topic) ?? 0) + 1);
+      if (q.archetypeId) archetypeCounts.set(q.archetypeId, (archetypeCounts.get(q.archetypeId) ?? 0) + 1);
+      q.representations.forEach((rep) => repCounts.set(rep, (repCounts.get(rep) ?? 0) + 1));
     }
-    // drop exhausted topics
-    for (let i = topics.length - 1; i >= 0; i--) {
-      const list = byTopic.get(topics[i]);
-      if (!list || list.length === 0) topics.splice(i, 1);
-    }
+    const scored = remaining.map((q) => {
+      let score = 1;
+      if (!ctx.seen.has(q.id)) score += 3;
+      if (ctx.missed.has(q.id)) score += 2;
+      score += ctx.conceptWeakness(q.conceptId) * 3;
+      score -= (topicCounts.get(q.topic) ?? 0) * 1.4;
+      score -= (archetypeCounts.get(q.archetypeId ?? "") ?? 0) * 4;
+      score -= q.representations.reduce((sum, rep) => sum + (repCounts.get(rep) ?? 0), 0) * 0.18;
+      // Small deterministic noise prevents identical sessions without making
+      // selection purely random.
+      score += Math.random() * 0.5;
+      return { q, score };
+    });
+    scored.sort((a, b) => b.score - a.score);
+    const chosen = scored[0].q;
+    out.push(chosen);
+    remaining.splice(remaining.indexOf(chosen), 1);
   }
   return out;
 }

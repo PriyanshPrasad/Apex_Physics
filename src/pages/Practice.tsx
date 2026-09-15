@@ -3,8 +3,8 @@ import { Link } from "react-router";
 import { ArrowRight, Lightbulb, RotateCcw, Shuffle, PenLine, Check, Play, Target, Timer, Zap, X } from "lucide-react";
 import { CONCEPTS, COURSE_MAP, UNITS, type CourseId } from "@/data/curriculum";
 import {
-  filterQuestions, pickSmart, buildSet, bankStats, DIFFICULTY_LABELS, DIFFICULTY_ORDER, SKILL_LABELS, ARCHETYPE_COUNT,
-  type QEntry, type QFilters, type Difficulty, type QuestionType, type SelectionCtx,
+  filterQuestions, pickSmart, buildSet, bankStats, AP_SKILL_LABELS, DIFFICULTY_LABELS, DIFFICULTY_ORDER, REPRESENTATION_LABELS, SKILL_LABELS, ARCHETYPE_COUNT,
+  type APSkill, type QEntry, type Difficulty, type QuestionType, type Representation, type SelectionCtx,
 } from "@/data/qbank";
 import { useProgress, progress, masteryOf } from "@/lib/progress";
 import { QDiagram } from "@/components/questions/Diagrams";
@@ -26,8 +26,10 @@ const MODES = [
   { id: "adaptive", label: "Adaptive Practice", n: 20, desc: "difficulty adjusts as you go" },
 ] as const;
 
-const DIFFICULTIES: (Difficulty | "any")[] = ["any", "easy", "medium", "hard", "ap", "challenge"];
+const DIFFICULTIES: (Difficulty | "any" | "adaptive")[] = ["any", "easy", "medium", "hard", "ap", "challenge", "adaptive"];
 const TYPES: (QuestionType | "any")[] = ["any", "conceptual", "quantitative", "graph", "diagram", "experimental", "representation", "equation-selection", "proportional-reasoning"];
+const AP_SKILLS: (APSkill | "any")[] = ["any", "conceptual-reasoning", "mathematical-routines", "creating-representations", "graphical-analysis", "experimental-design", "data-analysis", "representation-translation", "model-selection", "conservation-reasoning", "proportional-reasoning", "qualitative-quantitative-translation"];
+const REPRESENTATIONS: (Representation | "any")[] = ["any", "graph", "diagram", "table", "data", "equation", "circuit", "pv-diagram", "written-description"];
 
 function diffColor(d: Difficulty): string {
   return { easy: "#3d9c82", medium: "#7c6cf4", hard: "#e08a3c", ap: "#e05a6d", challenge: "#c14bd8" }[d];
@@ -204,6 +206,17 @@ function QuestionCard({
             </p>
           )}
 
+          <div className="clay-sm p-3">
+            <p className="text-xs font-extrabold uppercase tracking-wide text-muted-foreground">Option analysis</p>
+            <div className="mt-2 space-y-1.5 text-xs">
+              {q.choices.map((choice, i) => (
+                <p key={i} className={cn("leading-5", i === q.correct ? "text-[#2c8f78]" : "text-muted-foreground")}>
+                  <strong>{"ABCD"[i]}. {i === q.correct ? "Correct" : "Tempting"}:</strong> {i === q.correct ? "This choice matches the governing model and physical direction." : (q.tempt?.[i] ?? "This distractor reflects a common setup or interpretation error.")}
+                </p>
+              ))}
+            </div>
+          </div>
+
           <div>
             <p className="text-xs font-extrabold uppercase tracking-wide text-muted-foreground">Solution</p>
             <p className="mt-1 leading-6">{q.explanation}</p>
@@ -356,8 +369,11 @@ export default function Practice() {
   const [course, setCourse] = useState<CourseId | "any">("any");
   const [unit, setUnit] = useState<number | "any">("any");
   const [topic, setTopic] = useState<string | "any">("any");
+  const [subtopic, setSubtopic] = useState<string | "any">("any");
   const [difficulty, setDifficulty] = useState<Difficulty | "any">("any");
   const [type, setType] = useState<QuestionType | "any">("any");
+  const [skill, setSkill] = useState<APSkill | "any">("any");
+  const [representation, setRepresentation] = useState<Representation | "any">("any");
   const [mode, setMode] = useState<string>("standard");
 
   // session state
@@ -395,9 +411,14 @@ export default function Practice() {
     conceptWeakness: (cid) => 1 - masteryOf(p, cid) / 100,
   };
 
+  const subtopics = useMemo(
+    () => Array.from(new Set(filterQuestions({ course, topic }).map((q) => q.subtopic))),
+    [course, topic],
+  );
+
   const pool = useMemo(
-    () => filterQuestions({ course, unit, topic, difficulty, type }),
-    [course, unit, topic, difficulty, type],
+    () => filterQuestions({ course, unit, topic, subtopic, difficulty, type, skill, representation }),
+    [course, unit, topic, subtopic, difficulty, type, skill, representation],
   );
 
   const startSession = useCallback(() => {
@@ -503,9 +524,9 @@ export default function Practice() {
         <>
           <div className="clay mt-5 p-5">
             <FilterBar
-              course={course} setCourse={setCourse} unit={unit} setUnit={setUnit} topic={topic} setTopic={setTopic}
-              difficulty={difficulty} setDifficulty={setDifficulty} type={type} setType={setType}
-              unitsForCourse={unitsForCourse} topics={topics}
+              course={course} setCourse={setCourse} unit={unit} setUnit={setUnit} topic={topic} setTopic={setTopic} subtopic={subtopic} setSubtopic={setSubtopic}
+              difficulty={difficulty} setDifficulty={setDifficulty} type={type} setType={setType} skill={skill} setSkill={setSkill} representation={representation} setRepresentation={setRepresentation}
+              unitsForCourse={unitsForCourse} topics={topics} subtopics={subtopics}
             />
             <div className="mt-3 flex flex-wrap items-center gap-3">
               <Button onClick={nextFree} className="clay-btn clay-press border-0 font-bold">
@@ -547,9 +568,9 @@ export default function Practice() {
             </div>
             <div className="mt-4">
               <FilterBar
-                course={course} setCourse={setCourse} unit={unit} setUnit={setUnit} topic={topic} setTopic={setTopic}
-                difficulty={difficulty} setDifficulty={setDifficulty} type={type} setType={setType}
-                unitsForCourse={unitsForCourse} topics={topics}
+                course={course} setCourse={setCourse} unit={unit} setUnit={setUnit} topic={topic} setTopic={setTopic} subtopic={subtopic} setSubtopic={setSubtopic}
+                difficulty={difficulty} setDifficulty={setDifficulty} type={type} setType={setType} skill={skill} setSkill={setSkill} representation={representation} setRepresentation={setRepresentation}
+                unitsForCourse={unitsForCourse} topics={topics} subtopics={subtopics}
               />
             </div>
             <SkillSnapshot course={course} topic={topic} type={type} mastery={p.skillMastery} />
@@ -656,50 +677,73 @@ function SessionSummary({ results, total, elapsed, onRestart, onExit }: {
 // Shared filter bar
 // ------------------------------------------------------------
 function FilterBar({
-  course, setCourse, unit, setUnit, topic, setTopic, difficulty, setDifficulty, type, setType,
-  unitsForCourse, topics,
+  course, setCourse, unit, setUnit, topic, setTopic, subtopic, setSubtopic, difficulty, setDifficulty, type, setType, skill, setSkill, representation, setRepresentation,
+  unitsForCourse, topics, subtopics,
 }: {
   course: CourseId | "any"; setCourse: (c: CourseId | "any") => void;
   unit: number | "any"; setUnit: (u: number | "any") => void;
   topic: string | "any"; setTopic: (t: string | "any") => void;
+  subtopic: string | "any"; setSubtopic: (t: string | "any") => void;
   difficulty: Difficulty | "any"; setDifficulty: (d: Difficulty | "any") => void;
   type: QuestionType | "any"; setType: (t: QuestionType | "any") => void;
+  skill: APSkill | "any"; setSkill: (s: APSkill | "any") => void;
+  representation: Representation | "any"; setRepresentation: (r: Representation | "any") => void;
   unitsForCourse: typeof UNITS;
   topics: string[];
+  subtopics: string[];
 }) {
   return (
     <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
       <label className="text-xs font-bold">
         <span className="text-muted-foreground">Course</span>
-        <select value={course} onChange={(e) => { setCourse(e.target.value as CourseId | "any"); setUnit("any"); setTopic("any"); }} className="clay-inset mt-1 w-full px-3 py-2.5 text-sm font-semibold outline-none">
+        <select value={course} onChange={(e) => { setCourse(e.target.value as CourseId | "any"); setUnit("any"); setTopic("any"); setSubtopic("any"); }} className="clay-inset mt-1 w-full px-3 py-2.5 text-sm font-semibold outline-none">
           <option value="any">All courses</option>
           {Object.values(COURSE_MAP).map((c) => <option key={c.id} value={c.id}>{c.short}</option>)}
         </select>
       </label>
       <label className="text-xs font-bold">
         <span className="text-muted-foreground">Unit</span>
-        <select value={String(unit)} onChange={(e) => { const v = e.target.value === "any" ? "any" : Number(e.target.value); setUnit(v); setTopic("any"); }} className="clay-inset mt-1 w-full px-3 py-2.5 text-sm font-semibold outline-none">
+        <select value={String(unit)} onChange={(e) => { const v = e.target.value === "any" ? "any" : Number(e.target.value); setUnit(v); setTopic("any"); setSubtopic("any"); }} className="clay-inset mt-1 w-full px-3 py-2.5 text-sm font-semibold outline-none">
           <option value="any">All units</option>
           {unitsForCourse.map((u) => <option key={u.id} value={u.num}>Unit {u.num} — {u.name}</option>)}
         </select>
       </label>
       <label className="text-xs font-bold">
         <span className="text-muted-foreground">Topic</span>
-        <select value={topic} onChange={(e) => setTopic(e.target.value)} className="clay-inset mt-1 w-full px-3 py-2.5 text-sm font-semibold outline-none">
+        <select value={topic} onChange={(e) => { setTopic(e.target.value); setSubtopic("any"); }} className="clay-inset mt-1 w-full px-3 py-2.5 text-sm font-semibold outline-none">
           <option value="any">All topics</option>
           {topics.map((t) => <option key={t} value={t}>{t}</option>)}
         </select>
       </label>
       <label className="text-xs font-bold">
-        <span className="text-muted-foreground">Difficulty</span>
-        <select value={difficulty} onChange={(e) => setDifficulty(e.target.value as Difficulty | "any")} className="clay-inset mt-1 w-full px-3 py-2.5 text-sm font-semibold outline-none">
-          {DIFFICULTIES.map((d) => <option key={d} value={d}>{d === "any" ? "Any difficulty" : DIFFICULTY_LABELS[d]}</option>)}
+        <span className="text-muted-foreground">Subtopic</span>
+        <select value={subtopic} onChange={(e) => setSubtopic(e.target.value)} className="clay-inset mt-1 w-full px-3 py-2.5 text-sm font-semibold outline-none">
+          <option value="any">All subtopics</option>
+          {subtopics.map((t) => <option key={t} value={t}>{t}</option>)}
         </select>
       </label>
       <label className="text-xs font-bold">
-        <span className="text-muted-foreground">Question type / AP skill</span>
+        <span className="text-muted-foreground">Difficulty</span>
+        <select value={difficulty} onChange={(e) => setDifficulty(e.target.value === "adaptive" ? "any" : e.target.value as Difficulty | "any")} className="clay-inset mt-1 w-full px-3 py-2.5 text-sm font-semibold outline-none">
+          {DIFFICULTIES.map((d) => <option key={d} value={d}>{d === "any" ? "Any difficulty" : d === "adaptive" ? "Adaptive difficulty" : DIFFICULTY_LABELS[d]}</option>)}
+        </select>
+      </label>
+      <label className="text-xs font-bold">
+        <span className="text-muted-foreground">Question type</span>
         <select value={type} onChange={(e) => setType(e.target.value as QuestionType | "any")} className="clay-inset mt-1 w-full px-3 py-2.5 text-sm font-semibold outline-none">
           {TYPES.map((t) => <option key={t} value={t}>{t === "any" ? "Any type" : SKILL_LABELS[t]}</option>)}
+        </select>
+      </label>
+      <label className="text-xs font-bold">
+        <span className="text-muted-foreground">AP science skill</span>
+        <select value={skill} onChange={(e) => setSkill(e.target.value as APSkill | "any")} className="clay-inset mt-1 w-full px-3 py-2.5 text-sm font-semibold outline-none">
+          {AP_SKILLS.map((s) => <option key={s} value={s}>{s === "any" ? "All AP skills" : AP_SKILL_LABELS[s]}</option>)}
+        </select>
+      </label>
+      <label className="text-xs font-bold">
+        <span className="text-muted-foreground">Representation</span>
+        <select value={representation} onChange={(e) => setRepresentation(e.target.value as Representation | "any")} className="clay-inset mt-1 w-full px-3 py-2.5 text-sm font-semibold outline-none">
+          {REPRESENTATIONS.map((r) => <option key={r} value={r}>{r === "any" ? "All representations" : REPRESENTATION_LABELS[r]}</option>)}
         </select>
       </label>
     </div>
