@@ -34,6 +34,7 @@ export type ProgressState = {
   version: number;
   completedLessons: Record<string, number>; // lessonId -> percent (0-100)
   conceptMastery: Record<string, number>; // conceptId -> percent
+  skillMastery: Record<string, number>; // topic::questionType -> percent
   attempts: Record<string, number>; // conceptId -> count
   errors: { id: string; conceptId: string; category: ErrorCategory; at: number }[];
   streak: number;
@@ -52,6 +53,7 @@ const initial: ProgressState = {
   version: 1,
   completedLessons: {},
   conceptMastery: {},
+  skillMastery: {},
   attempts: {},
   errors: [],
   streak: 0,
@@ -126,12 +128,16 @@ export const progress = {
     }));
     touchStreak();
   },
-  recordAnswer(conceptId: string, correct: boolean, quality: number, category?: ErrorCategory, meta?: { difficulty?: string; source?: string; id?: string }) {
+  recordAnswer(conceptId: string, correct: boolean, quality: number, category?: ErrorCategory, meta?: { difficulty?: string; source?: string; id?: string; skill?: string }) {
     // Exponential-moving mastery from 0-100. quality: 1 correct-first-try, 0.5 correct-with-hints, 0 incorrect.
     const prev = state.conceptMastery[conceptId] ?? 25;
     const next = Math.max(0, Math.min(100, prev + (quality * 100 - prev) * 0.22));
+    const skillKey = meta?.skill;
+    const previousSkill = skillKey ? state.skillMastery[skillKey] ?? 25 : 0;
+    const nextSkill = skillKey ? Math.max(0, Math.min(100, previousSkill + (quality * 100 - previousSkill) * 0.22)) : 0;
     set((s) => ({
       conceptMastery: { ...s.conceptMastery, [conceptId]: Math.round(next) },
+      ...(skillKey ? { skillMastery: { ...s.skillMastery, [skillKey]: Math.round(nextSkill) } } : {}),
       attempts: { ...s.attempts, [conceptId]: (s.attempts[conceptId] ?? 0) + 1 },
       questionsAnswered: s.questionsAnswered + 1,
       problemsCompleted: s.problemsCompleted + (correct ? 1 : 0),

@@ -33,7 +33,22 @@ function LiveQuestion({ q, onDone }: { q: QEntry; onDone: (correct: boolean) => 
 
   return (
     <div>
-      <p className="text-[15px] leading-7">{q.prompt}</p>
+      {q.stimulusRender && (
+        <div className="clay-inset mb-4 p-4">
+          <p className="text-xs font-extrabold uppercase tracking-wide text-muted-foreground">Stimulus</p>
+          <p className="mt-2 whitespace-pre-line text-sm leading-6">{q.stimulusRender.blurb}</p>
+          {q.stimulusRender.diagram && <QDiagram spec={q.stimulusRender.diagram} />}
+          {q.stimulusRender.table && (
+            <div className="mt-3 overflow-x-auto">
+              <table className="w-full min-w-[320px] text-left text-xs">
+                <thead><tr>{q.stimulusRender.table.headers.map((h) => <th key={h} className="border-b border-border/60 px-2 py-2 font-extrabold">{h}</th>)}</tr></thead>
+                <tbody>{q.stimulusRender.table.rows.map((row, i) => <tr key={i}>{row.map((cell, j) => <td key={j} className="border-b border-border/40 px-2 py-2">{cell}</td>)}</tr>)}</tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
+      <p className="whitespace-pre-line text-[15px] leading-7">{q.prompt}</p>
       {q.diagram && (
         <div className="clay-inset mt-3 p-2">
           <QDiagram spec={q.diagram} />
@@ -62,7 +77,10 @@ function LiveQuestion({ q, onDone }: { q: QEntry; onDone: (correct: boolean) => 
           onClick={() => {
             setChecked(true);
             progress.recordAnswer(q.conceptId, ok, ok ? 1 : 0, q.category, {
-              id: q.id, difficulty: q.difficulty, source: "diagnostic",
+              id: q.id,
+              difficulty: q.difficulty,
+              source: "diagnostic",
+              skill: `${q.topic}::${q.type}`,
             });
           }}
           className="clay-btn clay-press mt-4 border-0 font-bold"
@@ -115,7 +133,16 @@ export default function ApDiagnostic() {
     }
     setPlan(newPlan);
     setAsked([]);
-    setCurrentQ(null);
+    // Pick immediately from the newly created plan. Without this, the run
+    // view can render its loading state forever because the plan update is
+    // asynchronous and there is no effect watching it.
+    const firstTopic = newPlan[0];
+    const firstPool = firstTopic ? bank.filter((q) => q.topic === firstTopic) : bank;
+    setCurrentQ(pickSmart(firstPool.length > 0 ? firstPool : bank, {
+      missed: new Set<string>(),
+      seen: new Set<string>(),
+      conceptWeakness: (cid: string) => 1 - masteryOf(p, cid) / 100,
+    }));
     setPhase("run");
   };
 

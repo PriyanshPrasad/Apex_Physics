@@ -33,8 +33,13 @@ function diffColor(d: Difficulty): string {
   return { easy: "#3d9c82", medium: "#7c6cf4", hard: "#e08a3c", ap: "#e05a6d", challenge: "#c14bd8" }[d];
 }
 
-function record(conceptId: string, correct: boolean, category?: string) {
-  progress.recordAnswer(conceptId, correct, correct ? 1 : 0, correct ? undefined : (category as never));
+function record(q: QEntry, correct: boolean) {
+  progress.recordAnswer(q.conceptId, correct, correct ? 1 : 0, correct ? undefined : (q.category as never), {
+    id: q.id,
+    difficulty: q.difficulty,
+    source: q.source === "hand" ? "bank" : "generated",
+    skill: `${q.topic}::${q.type}`,
+  });
 }
 
 /** Renders {eq}...{/eq} math inline */
@@ -87,7 +92,7 @@ function QuestionCard({
   useEffect(() => {
     if (!timed || checked || timeLeft > 0) return;
     setChecked(true);
-    record(q.conceptId, false, q.category);
+    record(q, false);
     onGraded?.(q, false);
   }, [timeLeft, timed, checked]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -118,7 +123,23 @@ function QuestionCard({
       </div>
 
       <div className="mt-4">
-        <p className="text-[15px] leading-7"><Rich text={q.prompt} /></p>
+        {q.stimulusRender && (
+          <div className="clay-inset mb-4 p-4">
+            <p className="text-xs font-extrabold uppercase tracking-wide text-muted-foreground">Stimulus</p>
+            <p className="mt-2 whitespace-pre-line text-sm leading-6">{q.stimulusRender.blurb}</p>
+            {q.stimulusRender.diagram && <QDiagram spec={q.stimulusRender.diagram} />}
+            {q.stimulusRender.table && (
+              <div className="mt-3 overflow-x-auto">
+                <table className="w-full min-w-[320px] text-left text-xs">
+                  <thead><tr>{q.stimulusRender.table.headers.map((h) => <th key={h} className="border-b border-border/60 px-2 py-2 font-extrabold">{h}</th>)}</tr></thead>
+                  <tbody>{q.stimulusRender.table.rows.map((row, i) => <tr key={i}>{row.map((cell, j) => <td key={j} className="border-b border-border/40 px-2 py-2">{cell}</td>)}</tr>)}</tbody>
+                </table>
+              </div>
+            )}
+            {q.stimulusRender.note && <p className="mt-2 text-xs text-muted-foreground">{q.stimulusRender.note}</p>}
+          </div>
+        )}
+        <p className="whitespace-pre-line text-[15px] leading-7"><Rich text={q.prompt} /></p>
         {q.diagram && (
           <button
             onClick={() => setShowDiagramZoom((z) => !z)}
@@ -157,7 +178,7 @@ function QuestionCard({
             onClick={() => {
               setChecked(true);
               const ok = selected === q.correct;
-              record(q.conceptId, ok, q.category);
+              record(q, ok);
               onGraded?.(q, ok);
             }}
             className="clay-btn clay-press border-0 font-bold"
@@ -531,6 +552,7 @@ export default function Practice() {
                 unitsForCourse={unitsForCourse} topics={topics}
               />
             </div>
+            <SkillSnapshot course={course} topic={topic} type={type} mastery={p.skillMastery} />
             <div className="mt-3 flex flex-wrap items-center gap-3">
               <Button onClick={startSession} disabled={pool.length === 0} className="clay-btn clay-press border-0 font-bold">
                 <Play className="mr-1.5 size-4" /> Start session
@@ -579,6 +601,26 @@ export default function Practice() {
           ) : null}
         </>
       )}
+    </div>
+  );
+}
+
+function SkillSnapshot({ course, topic, type, mastery }: { course: CourseId | "any"; topic: string | "any"; type: QuestionType | "any"; mastery: Record<string, number> }) {
+  const relevant = Object.entries(mastery)
+    .filter(([key]) => {
+      const [skillTopic, skillType] = key.split("::");
+      return (topic === "any" || skillTopic === topic) && (type === "any" || skillType === type) && (course === "any" || filterQuestions({ course }).some((q) => q.topic === skillTopic && q.type === skillType));
+    })
+    .sort((a, b) => a[1] - b[1])
+    .slice(0, 4);
+  if (relevant.length === 0) return null;
+  return (
+    <div className="mt-4 flex flex-wrap items-center gap-2">
+      <span className="text-[11px] font-extrabold uppercase tracking-wide text-muted-foreground">Skill mastery</span>
+      {relevant.map(([key, value]) => {
+        const label = key.split("::")[1];
+        return <span key={key} className="clay-sm px-2.5 py-1 text-[11px] font-bold">{SKILL_LABELS[label as QuestionType] ?? label} · {value}%</span>;
+      })}
     </div>
   );
 }
