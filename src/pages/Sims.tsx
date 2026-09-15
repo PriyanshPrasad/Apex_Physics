@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Atom } from "lucide-react";
 import { SIMS } from "@/sims/registry";
+import { SimFallback } from "@/sims/framework";
 import { cn } from "@/lib/utils";
 
 const SIM_META: { key: string; name: string; blurb: string; course: string }[] = [
@@ -21,8 +22,8 @@ const SIM_META: { key: string; name: string; blurb: string; course: string }[] =
   { key: "circuits", name: "Circuit Builder", blurb: "Battery, resistors, bulbs — series loop analysis.", course: "P2 · CEM" },
   { key: "rc", name: "RC Circuit", blurb: "Exponential charge/discharge with τ = RC.", course: "CEM" },
   { key: "magnetism", name: "Magnetic Fields", blurb: "Wire, loop, and circling charges.", course: "P2 · CEM" },
-  { key: "optics", name: "Ray Optics", blurb: "Converging, diverging, mirror; live image.", course: "P2" },
-  { key: "waves", name: "Wave Studio", blurb: "Single wave, interference, Doppler.", course: "P2" },
+  { key: "optics", name: "Ray Optics", blurb: "Converging, diverging, concave & convex — true ray tracing.", course: "P2" },
+  { key: "waves", name: "Wave Studio", blurb: "Traveling, standing, interference, Doppler.", course: "P2" },
   { key: "decay", name: "Radioactive Decay", blurb: "Random nuclei, lawful half-life curve.", course: "P2" },
   { key: "photoelectric", name: "Photoelectric Effect", blurb: "Photon energy vs intensity.", course: "P2" },
   { key: "orbital", name: "Orbital Mechanics", blurb: "Kepler's third law in motion.", course: "P1 · CM" },
@@ -52,7 +53,7 @@ export default function Sims() {
         </div>
         <div className="clay p-5">
           <h2 className="text-lg font-extrabold">{SIM_META.find((s) => s.key === sel)?.name}</h2>
-          {Sim && <Sim />}
+          {Sim && <SimFallback key={sel} name={sel}><Sim /></SimFallback>}
         </div>
       </div>
     </div>

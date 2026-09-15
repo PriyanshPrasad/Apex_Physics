@@ -19,6 +19,15 @@ export type DiagnosticState = {
   recommendedCourses: string[]; // course ids
 };
 
+export type QuestionRecord = {
+  id: string;
+  conceptId: string;
+  correct: boolean;
+  at: number;
+  difficulty: string;
+  source: string; // "bank" | "generated" | "lesson"
+};
+
 export type ProgressState = {
   version: number;
   completedLessons: Record<string, number>; // lessonId -> percent (0-100)
@@ -32,6 +41,7 @@ export type ProgressState = {
   timeStudiedMin: number;
   diagnostic: DiagnosticState | null;
   currentCourseId: string;
+  questionHistory: QuestionRecord[]; // ring buffer, newest first
 };
 
 const KEY = "ap-physics-mastery-progress-v1";
@@ -49,6 +59,7 @@ const initial: ProgressState = {
   timeStudiedMin: 0,
   diagnostic: null,
   currentCourseId: "p1",
+  questionHistory: [],
 };
 
 function todayStr() {
@@ -113,7 +124,7 @@ export const progress = {
     }));
     touchStreak();
   },
-  recordAnswer(conceptId: string, correct: boolean, quality: number, category?: ErrorCategory) {
+  recordAnswer(conceptId: string, correct: boolean, quality: number, category?: ErrorCategory, meta?: { difficulty?: string; source?: string; id?: string }) {
     // Exponential-moving mastery from 0-100. quality: 1 correct-first-try, 0.5 correct-with-hints, 0 incorrect.
     const prev = state.conceptMastery[conceptId] ?? 25;
     const next = Math.max(0, Math.min(100, prev + (quality * 100 - prev) * 0.22));
@@ -122,6 +133,17 @@ export const progress = {
       attempts: { ...s.attempts, [conceptId]: (s.attempts[conceptId] ?? 0) + 1 },
       questionsAnswered: s.questionsAnswered + 1,
       problemsCompleted: s.problemsCompleted + (correct ? 1 : 0),
+      questionHistory: [
+        {
+          id: meta?.id ?? `q-${Date.now()}-${Math.floor(Math.random() * 1e6)}`,
+          conceptId,
+          correct,
+          at: Date.now(),
+          difficulty: meta?.difficulty ?? "medium",
+          source: meta?.source ?? "generated",
+        },
+        ...s.questionHistory,
+      ].slice(0, 300),
       errors:
         correct || !category
           ? s.errors
