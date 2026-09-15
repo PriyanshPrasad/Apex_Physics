@@ -29,7 +29,10 @@ export type { APSkill, Representation, ResponseType };
 // with distinct seeds. This is the "expansion engine" — adding
 // more archetypes or raising VARIANT_DEPTH grows the bank.
 // ------------------------------------------------------------
-export const VARIANT_DEPTH = 18; // variants materialized per archetype
+// Each archetype produces a deterministic family of scenario/representation
+// variants. The bank remains local and lazy-cached while supporting thousands
+// of original questions as more archetypes are added.
+export const VARIANT_DEPTH = 36; // variants materialized per archetype
 
 const ARCHETYPES = [
   ...KINEMATICS,
@@ -79,6 +82,11 @@ export interface QEntry extends BankQuestion {
   stimulusId?: string;
   responseType: ResponseType;
   solutionSteps: string[];
+  stimulusType?: StimulusSpec["kind"];
+  sciencePractice: string[];
+  calculatorAllowed: boolean;
+  isOriginal: boolean;
+  sourceType: "original-hand" | "original-generated" | "official-link";
   subtopic: string;
   skills: APSkill[];
   representations: Representation[];
@@ -183,6 +191,12 @@ export function getBank(): QEntry[] {
     prerequisites: q.prereqIds,
     responseType: "multiple-choice",
     solutionSteps: ["Identify the physical model and the quantity being asked for.", q.apStrategy, q.explanation],
+    stimulusType: undefined,
+    sciencePractice: deriveSkills({ type: q.type, conceptId: q.conceptId, diagram: q.diagram }),
+    calculatorAllowed: true,
+    isOriginal: true,
+    sourceType: "original-hand",
+
     tempt: q.choices.map((_, index) => index === q.correct ? undefined : `This choice reflects a common mistake: ${q.commonMistake}`),
   }));
   const seenPrompts = new Set(out.map((q) => q.prompt.trim()));
@@ -255,6 +269,11 @@ export function getBank(): QEntry[] {
         stimulusId: stimSpec ? `${arch.shared ?? arch.id}#${v}` : undefined,
         responseType: raw.responseType ?? "multiple-choice",
         solutionSteps: raw.solutionSteps ?? ["Identify the system and known information.", raw.apStrategy, raw.explanation],
+        stimulusType: stimSpec?.kind,
+        sciencePractice: raw.skills ?? arch.skills ?? deriveSkills({ type: arch.type, conceptId: arch.conceptId, diagram: raw.diagram, stimulus: stimSpec }),
+        calculatorAllowed: true,
+        isOriginal: true,
+        sourceType: "original-generated",
       });
     }
   }

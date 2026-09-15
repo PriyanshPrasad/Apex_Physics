@@ -7,6 +7,7 @@ import { Link } from "react-router";
 import { ArrowRight, Stethoscope, Zap } from "lucide-react";
 import { filterQuestions, pickSmart, DIFFICULTY_LABELS, DIFFICULTY_ORDER, SKILL_LABELS, type QEntry, type Difficulty } from "@/data/qbank";
 import { COURSES, COURSE_MAP, type CourseId } from "@/data/curriculum";
+import { PREREQ_QUESTIONS } from "@/data/prereqBank";
 import { useProgress, progress, masteryOf } from "@/lib/progress";
 import { QDiagram } from "@/components/questions/Diagrams";
 import { Button } from "@/components/ui/button";
@@ -126,15 +127,28 @@ export default function ApDiagnostic() {
   const [customN, setCustomN] = useState(30);
   const [courses, setCourses] = useState<CourseId[]>(["p1"]);
   const [difficultyMode, setDifficultyMode] = useState<"mixed" | "easy-hard" | "standard" | "challenging" | "advanced">("mixed");
+  const [contentMode, setContentMode] = useState<"physics" | "prereq" | "mixed" | "custom">("physics");
+  const [physicsShare, setPhysicsShare] = useState(75);
   const [plan, setPlan] = useState<string[]>([]); // topic per question index
   const [asked, setAsked] = useState<Answered[]>([]);
   const [currentQ, setCurrentQ] = useState<QEntry | null>(null);
+  const [activeBank, setActiveBank] = useState<QEntry[]>([]);
 
   const targetN = len === "custom" ? customN : LENGTHS.find((l) => l.id === len)?.n ?? 24;
   const toggleCourse = (courseId: CourseId) => setCourses((current) => current.includes(courseId) ? current.filter((id) => id !== courseId) : [...current, courseId]);
 
   const start = () => {
-    const bank = filterQuestions({}).filter((q) => courses.includes(q.course));
+    const physicsBank = filterQuestions({}).filter((q) => courses.includes(q.course));
+    const prerequisiteBank = PREREQ_QUESTIONS.filter((q) => courses.includes(q.course));
+    let bank = physicsBank;
+    if (contentMode === "prereq") bank = prerequisiteBank;
+    if (contentMode === "mixed" || contentMode === "custom") {
+      const physicsCount = Math.round(targetN * physicsShare / 100);
+      const prereqCount = targetN - physicsCount;
+      const shuffledPhysics = [...physicsBank].sort(() => Math.random() - 0.5).slice(0, physicsCount);
+      const shuffledPrereq = [...prerequisiteBank].sort(() => Math.random() - 0.5).slice(0, prereqCount);
+      bank = [...shuffledPhysics, ...shuffledPrereq];
+    }
     // Topic coverage plan: shuffle topics so each attempt differs.
     const topics = Array.from(new Set(bank.map((q) => q.topic))).sort(() => Math.random() - 0.5);
     const newPlan: string[] = [];
@@ -145,6 +159,7 @@ export default function ApDiagnostic() {
       }
     }
     setPlan(newPlan);
+    setActiveBank(bank);
     setAsked([]);
     // Pick immediately from the newly created plan. Without this, the run
     // view can render its loading state forever because the plan update is
@@ -161,7 +176,7 @@ export default function ApDiagnostic() {
 
   // Adaptive pick: topic comes from the plan, difficulty from recent streaks.
   const pickNext = (history: Answered[]): QEntry | null => {
-    const bank = filterQuestions({});
+    const bank = activeBank.length > 0 ? activeBank : filterQuestions({}).filter((q) => courses.includes(q.course));
     const nextTopic = plan[history.length];
     let pool = nextTopic ? bank.filter((q) => q.topic === nextTopic) : bank;
     if (pool.length === 0) pool = bank;
@@ -411,6 +426,14 @@ export default function ApDiagnostic() {
               );
             })}
           </div>
+        </section>
+
+        <section className="mt-6">
+          <p className="text-xs font-extrabold uppercase tracking-wide text-muted-foreground">What should this diagnostic test?</p>
+          <div className="mt-2 grid gap-2 sm:grid-cols-2">
+            {([["physics", "Physics content only", "Only the selected AP courses"], ["prereq", "Prerequisites only", "Physics-relevant math, graphs, vectors, or calculus"], ["mixed", "Physics + prerequisites", "Blend both pools with a controllable balance"], ["custom", "Custom", "Choose the balance and future skill categories"]] as const).map(([value, label, description]) => <button key={value} onClick={() => setContentMode(value)} aria-pressed={contentMode === value} className={cn("clay-sm clay-press border-2 p-3 text-left", contentMode === value ? "border-[var(--clay-4)] bg-[var(--clay-primary-tint)]" : "border-transparent")}><span className="block text-sm font-extrabold">{label}</span><span className="mt-1 block text-xs text-muted-foreground">{description}</span></button>)}
+          </div>
+          {(contentMode === "mixed" || contentMode === "custom") && <label className="mt-3 block text-xs font-bold"><span className="text-muted-foreground">Physics content {physicsShare}% · prerequisites {100 - physicsShare}%</span><input type="range" min={10} max={90} step={5} value={physicsShare} onChange={(e) => setPhysicsShare(Number(e.target.value))} className="mt-2 h-2 w-full" /></label>}
         </section>
 
         <section className="mt-6 grid gap-4 sm:grid-cols-2">

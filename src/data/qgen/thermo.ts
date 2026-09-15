@@ -5,7 +5,29 @@ import { fmt, pick, ri } from "./core";
 
 const GAS = ["helium sample", "sealed piston of air", "argon chamber", "laboratory gas" ] as const;
 
+function pistonStimulus(r: () => number) {
+  const pressure = ri(2, 6, r);
+  const rows = [1, 2, 3, 4].map((volume) => [String(volume), fmt(pressure * volume), "constant temperature"]);
+  return { pressure, stimulus: { kind: "table" as const, headers: ["Volume (L)", "Pressure (kPa)", "Condition"], rows, blurb: "A student slowly changes the volume of a sealed gas sample while maintaining constant temperature. The pressure is recorded after the piston settles." } };
+}
+
 export const THERMO: Archetype[] = [
+  {
+    id: "thermo-stimulus-model", shared: "thermo-piston-set", course: "p2", unit: 9, topic: "Thermodynamics", conceptId: "p2-ideal-gas",
+    difficulty: "hard", type: "experimental",
+    gen: (r): RawQ => {
+      const { pressure, stimulus } = pistonStimulus(r);
+      return { stimulus, prompt: "Which graph would best test whether the data support the ideal-gas relationship for this isothermal process?", choices: ["P versus V, which should be linear", "P versus 1/V, which should be linear", "P versus V², which should be linear", "V versus P², which should be linear"], correct: 1, tempt: ["An isotherm is not P ∝ V; pressure decreases as volume increases.", undefined, "The model predicts an inverse relationship, not an inverse-square relationship.", "The axes and exponent do not produce the straight-line form P = constant/V."], explanation: `For constant temperature and amount of gas, PV = constant, so P = (${pressure})/V. Plotting P against 1/V should produce a straight line through the origin.`, equations: ["P = \\frac{nRT}{V}"], commonMistake: "Plotting the raw variables instead of transforming the inverse relationship.", apStrategy: "Rewrite the model in y = mx form before choosing graph axes.", category: "experimental" };
+    },
+  },
+  {
+    id: "thermo-stimulus-prediction", shared: "thermo-piston-set", course: "p2", unit: 9, topic: "Thermodynamics", conceptId: "p2-ideal-gas",
+    difficulty: "hard", type: "proportional-reasoning",
+    gen: (r): RawQ => {
+      const { pressure, stimulus } = pistonStimulus(r);
+      return { stimulus, prompt: `Using the stimulus data, if the volume is changed from 2 L to 8 L at the same temperature, the pressure should be approximately:`, choices: [`${fmt(pressure / 4)} kPa`, `${fmt(pressure * 4)} kPa`, `${fmt(pressure / 2)} kPa`, `${fmt(pressure)} kPa`], correct: 0, tempt: [undefined, "Pressure varies inversely with volume; increasing volume lowers pressure.", "The volume changes by a factor of four, not two.", "An isothermal expansion changes pressure even though temperature is fixed."], explanation: `Because PV is constant, P_2 = P_1(V_1/V_2). Moving from 2 L to 8 L divides pressure by four.`, equations: ["P_1V_1 = P_2V_2"], commonMistake: "Treating pressure as directly proportional to volume.", apStrategy: "Use a ratio form before substituting: P₂/P₁ = V₁/V₂.", category: "proportional" };
+    },
+  },
   {
     id: "thermo-pv-work-sign", course: "p2", unit: 9, topic: "Thermodynamics", conceptId: "p2-heat-energy",
     difficulty: "medium", type: "graph",
