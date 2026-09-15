@@ -59,7 +59,7 @@ const TEMPLATES: Template[] = [
   // ---------------- Kinematics ----------------
   {
     conceptId: "p1-kinematics",
-    gen: (d, _r) => {
+    gen: (_d, _r) => {
       const v0 = ri(2, 15);
       const a = ri(1, 6);
       const t = ri(2, 8);
@@ -80,7 +80,7 @@ const TEMPLATES: Template[] = [
   },
   {
     conceptId: "p1-kinematics",
-    gen: (d, _r) => {
+    gen: (_d, _r) => {
       const v0 = 0;
       const a = ri(2, 10);
       const t = ri(2, 6);
@@ -101,7 +101,7 @@ const TEMPLATES: Template[] = [
   },
   {
     conceptId: "p1-projectiles",
-    gen: (d, _r) => {
+    gen: (_d, _r) => {
       const v = ri(10, 40);
       const angle = [30, 45, 60][ri(0, 2)];
       const vy = v * Math.sin((angle * Math.PI) / 180);
@@ -123,7 +123,7 @@ const TEMPLATES: Template[] = [
   // ---------------- Forces ----------------
   {
     conceptId: "p1-friction",
-    gen: (d, _r) => {
+    gen: (_d, _r) => {
       const m = ri(2, 20);
       const mu = round(0.1 * ri(2, 8), 1);
       const f = round(mu * m * 9.8, 2);
@@ -143,7 +143,7 @@ const TEMPLATES: Template[] = [
   },
   {
     conceptId: "p1-newton2",
-    gen: (d, _r) => {
+    gen: (_d, _r) => {
       const F = ri(20, 200);
       const m = ri(2, 30);
       const a = round(F / m, 2);
@@ -163,7 +163,7 @@ const TEMPLATES: Template[] = [
   },
   {
     conceptId: "p1-circular-force",
-    gen: (d, _r) => {
+    gen: (_d, _r) => {
       const m = ri(1, 5);
       const v = ri(4, 20);
       const r = ri(2, 12);
@@ -185,7 +185,7 @@ const TEMPLATES: Template[] = [
   // ---------------- Energy ----------------
   {
     conceptId: "p1-energy-conservation",
-    gen: (d, _r) => {
+    gen: (_d, _r) => {
       const m = ri(1, 10);
       const h = ri(2, 30);
       const ke = round(m * 9.8 * h, 2);
@@ -205,7 +205,7 @@ const TEMPLATES: Template[] = [
   },
   {
     conceptId: "p1-work",
-    gen: (d, _r) => {
+    gen: (_d, _r) => {
       const F = ri(10, 100);
       const d = ri(2, 20);
       const theta = [0, 30, 45, 60][ri(0, 3)];
@@ -227,7 +227,7 @@ const TEMPLATES: Template[] = [
   // ---------------- Momentum ----------------
   {
     conceptId: "p1-momentum",
-    gen: (d, _r) => {
+    gen: (_d, _r) => {
       const m1 = ri(1, 10);
       const v1 = ri(2, 20);
       const J = round(m1 * v1, 2);
@@ -247,7 +247,7 @@ const TEMPLATES: Template[] = [
   },
   {
     conceptId: "p1-collisions",
-    gen: (d, _r) => {
+    gen: (_d, _r) => {
       const m1 = ri(1, 8);
       const m2 = ri(1, 8);
       const v1 = ri(2, 12);
@@ -269,7 +269,7 @@ const TEMPLATES: Template[] = [
   // ---------------- Rotation ----------------
   {
     conceptId: "p1-torque",
-    gen: (d, _r) => {
+    gen: (_d, _r) => {
       const F = ri(10, 90);
       const r = round(0.25 * ri(1, 8), 2);
       const theta = [90, 60, 45, 30][ri(0, 3)];
@@ -290,7 +290,7 @@ const TEMPLATES: Template[] = [
   },
   {
     conceptId: "p1-angular-momentum",
-    gen: (d, _r) => {
+    gen: (_d, _r) => {
       const I1 = round(0.5 * ri(1, 6), 2);
       const w1 = ri(2, 12);
       const I2 = round(I1 / ri(2, 4), 2);
@@ -312,7 +312,7 @@ const TEMPLATES: Template[] = [
   // ---------------- SHM ----------------
   {
     conceptId: "p1-shm",
-    gen: (d, _r) => {
+    gen: (_d, _r) => {
       const m = round(0.1 * ri(2, 30), 2);
       const k = ri(10, 200);
       const T = round(2 * Math.PI * Math.sqrt(m / k), 3);
@@ -333,7 +333,7 @@ const TEMPLATES: Template[] = [
   // ---------------- Electricity ----------------
   {
     conceptId: "p2-current-ohm",
-    gen: (d, _r) => {
+    gen: (_d, _r) => {
       const V = ri(3, 24);
       const R = ri(2, 100);
       const I = round(V / R, 3);
@@ -353,7 +353,7 @@ const TEMPLATES: Template[] = [
   },
   {
     conceptId: "p2-series-parallel",
-    gen: (d, _r) => {
+    gen: (_d, _r) => {
       const R1 = ri(2, 50);
       const R2 = ri(2, 50);
       const req = round((R1 * R2) / (R1 + R2), 2);
@@ -373,7 +373,7 @@ const TEMPLATES: Template[] = [
   },
   {
     conceptId: "p2-charge-force",
-    gen: (d, _r) => {
+    gen: (_d, _r) => {
       const q1 = ri(1, 9);
       const q2 = ri(1, 9);
       const r = ri(1, 5);
@@ -395,7 +395,7 @@ const TEMPLATES: Template[] = [
   },
   {
     conceptId: "cem-rc-circuits",
-    gen: (d, _r) => {
+    gen: (_d, _r) => {
       const R = ri(1, 50) * 1000;
       const C = round(0.0001 * ri(1, 9), 4);
       const tau = round((R * C) / 1000, 3); // ms
@@ -416,7 +416,7 @@ const TEMPLATES: Template[] = [
   // ---------------- Waves / optics ----------------
   {
     conceptId: "p2-waves",
-    gen: (d, _r) => {
+    gen: (_d, _r) => {
       const f = ri(2, 100);
       const v = [340, 343, 1500][ri(0, 2)];
       const lambda = round(v / f, 3);
@@ -436,7 +436,7 @@ const TEMPLATES: Template[] = [
   },
   {
     conceptId: "p2-lenses-mirrors",
-    gen: (d, _r) => {
+    gen: (_d, _r) => {
       const f = ri(5, 30);
       const dobj = f * ri(2, 5);
       const di = round((f * dobj) / (dobj - f), 2);
@@ -457,7 +457,7 @@ const TEMPLATES: Template[] = [
   // ---------------- Calculus (C courses) ----------------
   {
     conceptId: "cm-calculus-kin",
-    gen: (d, _r) => {
+    gen: (_d, _r) => {
       const c = ri(2, 9);
       const t = ri(2, 6);
       const v = c * t;
@@ -477,7 +477,7 @@ const TEMPLATES: Template[] = [
   },
   {
     conceptId: "cm-work-integral",
-    gen: (d, _r) => {
+    gen: (_d, _r) => {
       const c = ri(2, 10);
       const x1 = ri(1, 3);
       const x2 = x1 + ri(1, 4);
@@ -498,7 +498,7 @@ const TEMPLATES: Template[] = [
   },
   {
     conceptId: "cem-gauss",
-    gen: (d, _r) => {
+    gen: (_d, _r) => {
       const Q = round(ri(1, 20) / 10, 1);
       const r = ri(1, 4);
       const k = 8.99e9;

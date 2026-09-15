@@ -8,17 +8,39 @@ import { createRoot } from "react-dom/client";
 import { BrowserRouter, Route, Routes, useLocation } from "react-router";
 import "./index.css";
 
+// Apply saved theme before first paint
+(function applyTheme() {
+  const saved = localStorage.getItem("apm-theme");
+  const prefersDark = window.matchMedia?.("(prefers-color-scheme: dark)").matches;
+  if (saved === "dark" || (!saved && prefersDark)) {
+    document.documentElement.classList.add("dark");
+  }
+})();
+
 // Lazy load route components for better code splitting
 const Landing = lazy(() => import("./pages/Landing.tsx"));
 const AuthPage = lazy(() => import("./pages/Auth.tsx"));
 const Dashboard = lazy(() => import("./pages/Dashboard.tsx"));
 const NotFound = lazy(() => import("./pages/NotFound.tsx"));
+const AppShell = lazy(() => import("./components/AppShell.tsx"));
+const LearnHome = lazy(() => import("./pages/Learn.tsx").then((m) => ({ default: m.LearnHome })));
+const CoursePage = lazy(() => import("./pages/Learn.tsx").then((m) => ({ default: m.CoursePage })));
+const Lesson = lazy(() => import("./pages/Lesson.tsx"));
+const Practice = lazy(() => import("./pages/Practice.tsx"));
+const Labs = lazy(() => import("./pages/Labs.tsx"));
+const Sims = lazy(() => import("./pages/Sims.tsx"));
+const KnowledgeMap = lazy(() => import("./pages/Map.tsx"));
+const Equations = lazy(() => import("./pages/Equations.tsx"));
+const Mistakes = lazy(() => import("./pages/Mistakes.tsx"));
+const ProgressPage = lazy(() => import("./pages/Progress.tsx"));
+const Compare = lazy(() => import("./pages/Compare.tsx"));
+const Diagnostic = lazy(() => import("./pages/Diagnostic.tsx"));
 
 // Simple loading fallback for route transitions
 function RouteLoading() {
   return (
-    <div className="min-h-screen flex items-center justify-center">
-      <div className="animate-pulse text-muted-foreground">Loading...</div>
+    <div className="flex min-h-screen items-center justify-center">
+      <div className="animate-pulse text-sm font-semibold text-muted-foreground">Loading…</div>
     </div>
   );
 }
@@ -60,14 +82,12 @@ class RootErrorBoundary extends React.Component<
   render() {
     if (this.state.hasError) {
       return (
-        <div className="min-h-screen flex items-center justify-center bg-background text-foreground p-6">
+        <div className="flex min-h-screen items-center justify-center bg-background p-6 text-foreground">
           <div className="max-w-lg text-center">
             <p className="text-sm font-semibold">Preview runtime error</p>
-            <p className="mt-2 text-xs text-muted-foreground break-words">
-              {this.state.message}
-            </p>
+            <p className="mt-2 break-words text-xs text-muted-foreground">{this.state.message}</p>
             {this.state.stack && (
-              <pre className="mt-3 text-left text-[10px] leading-4 text-muted-foreground/80 max-h-40 overflow-auto rounded border border-border/60 p-2">
+              <pre className="mt-3 max-h-40 overflow-auto rounded border border-border/60 p-2 text-left text-[10px] leading-4 text-muted-foreground/80">
                 {this.state.stack}
               </pre>
             )}
@@ -81,15 +101,10 @@ class RootErrorBoundary extends React.Component<
 
 const convex = new ConvexReactClient(import.meta.env.VITE_CONVEX_URL as string);
 
-
-
 function RouteSyncer() {
   const location = useLocation();
   useEffect(() => {
-    window.parent.postMessage(
-      { type: "iframe-route-change", path: location.pathname },
-      "*",
-    );
+    window.parent.postMessage({ type: "iframe-route-change", path: location.pathname }, "*");
   }, [location.pathname]);
 
   useEffect(() => {
@@ -106,7 +121,6 @@ function RouteSyncer() {
   return null;
 }
 
-
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <RootErrorBoundary>
@@ -119,18 +133,28 @@ createRoot(document.getElementById("root")!).render(
           <Suspense fallback={<RouteLoading />}>
             <Routes>
               <Route path="/" element={<Landing />} />
+              <Route path="/auth" element={<AuthPage redirectAfterAuth="/dashboard" />} />
               <Route
-                path="/auth"
-                element={<AuthPage redirectAfterAuth="/dashboard" />}
-              />
-              <Route
-                path="/dashboard"
                 element={
                   <RequireAuth>
-                    <Dashboard />
+                    <AppShell />
                   </RequireAuth>
                 }
-              />
+              >
+                <Route path="/dashboard" element={<Dashboard />} />
+                <Route path="/learn" element={<LearnHome />} />
+                <Route path="/learn/:courseId" element={<CoursePage />} />
+                <Route path="/learn/:courseId/:conceptId" element={<Lesson />} />
+                <Route path="/practice" element={<Practice />} />
+                <Route path="/labs" element={<Labs />} />
+                <Route path="/sims" element={<Sims />} />
+                <Route path="/map" element={<KnowledgeMap />} />
+                <Route path="/equations" element={<Equations />} />
+                <Route path="/mistakes" element={<Mistakes />} />
+                <Route path="/progress" element={<ProgressPage />} />
+                <Route path="/compare" element={<Compare />} />
+                <Route path="/diagnostic" element={<Diagnostic />} />
+              </Route>
               <Route path="*" element={<NotFound />} />
             </Routes>
           </Suspense>

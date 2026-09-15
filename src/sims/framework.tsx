@@ -1,0 +1,171 @@
+import { useEffect, useRef } from "react";
+
+export interface DrawCtx {
+  ctx: CanvasRenderingContext2D;
+  w: number;
+  h: number;
+  t: number;
+  fg: string;
+  muted: string;
+  clay: string;
+  accent: string;
+  violet: string;
+  pink: string;
+  teal: string;
+  gold: string;
+  blue: string;
+}
+
+/** Canvas hook with DPR scaling and rAF loop. */
+export function useCanvasLoop(draw: (d: DrawCtx) => void) {
+  const ref = useRef<HTMLCanvasElement>(null);
+  const drawRef = useRef(draw);
+  drawRef.current = draw;
+  useEffect(() => {
+    const canvas = ref.current;
+    if (!canvas) return;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+    let raf = 0;
+    const start = performance.now();
+    const loop = (now: number) => {
+      const dpr = Math.min(window.devicePixelRatio || 1, 2);
+      const rect = canvas.getBoundingClientRect();
+      const w = Math.max(1, rect.width);
+      const h = Math.max(1, rect.height);
+      if (canvas.width !== Math.round(w * dpr) || canvas.height !== Math.round(h * dpr)) {
+        canvas.width = Math.round(w * dpr);
+        canvas.height = Math.round(h * dpr);
+      }
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+      const dark = document.documentElement.classList.contains("dark");
+      const d: DrawCtx = {
+        ctx, w, h, t: (now - start) / 1000,
+        fg: dark ? "#efecf9" : "#3c3752",
+        muted: dark ? "#a49dbf" : "#7c7697",
+        clay: dark ? "#3a3452" : "#e6e2f3",
+        accent: dark ? "#4d7592" : "#bfe6f2",
+        violet: "#8b7bff",
+        pink: "#ff8fb1",
+        teal: "#4fc7b8",
+        gold: "#ffc46b",
+        blue: "#8fb8f7",
+      };
+      ctx.clearRect(0, 0, w, h);
+      draw(d);
+      raf = requestAnimationFrame(loop);
+    };
+    raf = requestAnimationFrame(loop);
+    return () => cancelAnimationFrame(raf);
+  }, []);
+  return ref;
+}
+
+export function SimFrame({ children, height = 320 }: { children: React.ReactNode; height?: number }) {
+  return (
+    <div className="clay-screen relative w-full overflow-hidden" style={{ height }}>
+      {children}
+    </div>
+  );
+}
+
+export function SimRow({ children }: { children: React.ReactNode }) {
+  return <div className="mt-3 flex flex-wrap items-center gap-4">{children}</div>;
+}
+
+export function Slider({
+  label, value, min, max, step = 1, onChange, format,
+}: {
+  label: string;
+  value: number;
+  min: number;
+  max: number;
+  step?: number;
+  onChange: (v: number) => void;
+  format?: (v: number) => string;
+}) {
+  return (
+    <label className="flex min-w-[150px] flex-1 flex-col gap-1 text-xs font-medium">
+      <span className="text-muted-foreground">
+        {label} <span className="text-foreground">{format ? format(value) : value}</span>
+      </span>
+      <input
+        type="range"
+        min={min}
+        max={max}
+        step={step}
+        value={value}
+        onChange={(e) => onChange(parseFloat(e.target.value))}
+        className="h-2 w-full cursor-pointer appearance-none rounded-full bg-clay-3 accent-[var(--clay-4)]"
+      />
+    </label>
+  );
+}
+
+export function Toggle({ label, on, onChange }: { label: string; on: boolean; onChange: (v: boolean) => void }) {
+  return (
+    <button
+      type="button"
+      onClick={() => onChange(!on)}
+      className="clay-sm clay-press px-3 py-1.5 text-xs font-semibold"
+      style={on ? { background: "var(--clay-primary-tint)", color: "var(--clay-primary-deep)" } : undefined}
+    >
+      {label} {on ? "✓" : "○"}
+    </button>
+  );
+}
+
+/** arrow helper */
+export function arrow(
+  ctx: CanvasRenderingContext2D,
+  x1: number, y1: number, x2: number, y2: number,
+  color: string, width = 2, head = 7,
+) {
+  const dx = x2 - x1;
+  const dy = y2 - y1;
+  const len = Math.hypot(dx, dy);
+  if (len < 2) return;
+  const a = Math.atan2(dy, dx);
+  ctx.strokeStyle = color;
+  ctx.fillStyle = color;
+  ctx.lineWidth = width;
+  ctx.beginPath();
+  ctx.moveTo(x1, y1);
+  ctx.lineTo(x2 - head * 0.6 * Math.cos(a), y2 - head * 0.6 * Math.sin(a));
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(x2, y2);
+  ctx.lineTo(x2 - head * Math.cos(a - Math.PI / 6), y2 - head * Math.sin(a - Math.PI / 6));
+  ctx.lineTo(x2 - head * Math.cos(a + Math.PI / 6), y2 - head * Math.sin(a + Math.PI / 6));
+  ctx.closePath();
+  ctx.fill();
+}
+
+export function grid(ctx: CanvasRenderingContext2D, w: number, h: number, step = 30, color = "rgba(128,120,160,0.14)") {
+  ctx.strokeStyle = color;
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  for (let x = 0; x < w; x += step) { ctx.moveTo(x, 0); ctx.lineTo(x, h); }
+  for (let y = 0; y < h; y += step) { ctx.moveTo(0, y); ctx.lineTo(w, y); }
+  ctx.stroke();
+}
+
+/** clay-style ball */
+export function ball(ctx: CanvasRenderingContext2D, x: number, y: number, r: number, color: string) {
+  const g = ctx.createRadialGradient(x - r * 0.35, y - r * 0.4, r * 0.1, x, y, r);
+  g.addColorStop(0, "#ffffff");
+  g.addColorStop(0.25, color);
+  g.addColorStop(1, shade(color, -28));
+  ctx.fillStyle = g;
+  ctx.beginPath();
+  ctx.arc(x, y, r, 0, Math.PI * 2);
+  ctx.fill();
+}
+
+export function shade(hex: string, amt: number): string {
+  const n = parseInt(hex.replace("#", ""), 16);
+  const r = Math.max(0, Math.min(255, ((n >> 16) & 255) + amt));
+  const g = Math.max(0, Math.min(255, ((n >> 8) & 255) + amt));
+  const b = Math.max(0, Math.min(255, (n & 255) + amt));
+  return `rgb(${r},${g},${b})`;
+}

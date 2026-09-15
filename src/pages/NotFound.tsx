@@ -1,3 +1,4 @@
+import { Link } from "react-router";
 import { motion } from "framer-motion";
 
 export default function NotFound() {
@@ -6,20 +7,17 @@ export default function NotFound() {
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       transition={{ duration: 0.5 }}
-      className="min-h-screen flex flex-col"
+      className="flex min-h-screen flex-col items-center justify-center px-4"
     >
-
-      
-      {/* Main Content */}
-      <div className="flex-1 flex flex-col items-center justify-center">
-        <div className="max-w-5xl mx-auto relative px-4">
-          <div className="flex items-center justify-center min-h-[200px]">
-            <div className="text-center">
-              <h1 className="text-4xl font-bold text-gray-900 mb-4">404</h1>
-              <p className="text-lg text-gray-600">Page Not Found</p>
-            </div>
-          </div>
-        </div>
+      <div className="clay max-w-md p-10 text-center">
+        <p className="text-6xl font-black tracking-tight text-[var(--clay-primary-deep)]">404</p>
+        <p className="mt-3 text-lg font-extrabold">This page escaped the system boundary.</p>
+        <p className="mt-1.5 text-sm text-muted-foreground">
+          Even in a closed system, momentum is conserved — you'll just have to redirect it.
+        </p>
+        <Link to="/" className="clay-btn clay-press mt-6 inline-block px-6 py-3 text-sm font-extrabold">
+          Back to home
+        </Link>
       </div>
     </motion.div>
   );
