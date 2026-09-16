@@ -122,7 +122,7 @@ function ProblemPlayer({
   const check = () => {
     if (selected === null) return;
     setChecked(true);
-    recordProgress(conceptId, selected === problem.correct, hintsShown, problem.category);
+    useProgressRecord(conceptId, selected === problem.correct, hintsShown, problem.category);
   };
 
   return (
@@ -194,7 +194,7 @@ function ProblemPlayer({
   );
 }
 
-function recordProgress(conceptId: string, correct: boolean, hints: number, category?: string) {
+function useProgressRecord(conceptId: string, correct: boolean, hints: number, category?: string) {
   const quality = correct ? (hints === 0 ? 1 : 0.5) : 0;
   import("@/lib/progress").then(({ progress }) =>
     progress.recordAnswer(conceptId, correct, quality, correct ? undefined : (category as never)),

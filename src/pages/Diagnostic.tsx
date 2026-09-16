@@ -85,7 +85,7 @@ export default function Diagnostic() {
 
   const finish = () => {
     setFinished(true);
-    saveDiagnosticResult(scores, rec);
+    useProgressSetDiagnostic(scores, rec);
   };
 
   if (finished) {
@@ -221,7 +221,7 @@ export default function Diagnostic() {
   );
 }
 
-function saveDiagnosticResult(scores: Record<string, number>, rec: ReturnType<typeof recommend>) {
+function useProgressSetDiagnostic(scores: Record<string, number>, rec: ReturnType<typeof recommend>) {
   import("@/lib/progress").then(({ progress }) => {
     progress.setDiagnostic({
       completed: true,

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { useCanvasLoop, SimFrame, SimRow, Slider, Toggle, arrow, grid, ball } from "./framework";
 import { SimShell } from "./SimShell";
 
@@ -105,12 +105,10 @@ export function KinematicsSim() {
   const lastA = useRef({ a, v0, x0 });
 
   // Re-seed history whenever parameters or reset change.
-  useEffect(() => {
-    if (lastA.current.a !== a || lastA.current.v0 !== v0 || lastA.current.x0 !== x0) {
-      lastA.current = { a, v0, x0 };
-      initRef.current = false;
-    }
-  }, [a, v0, x0]);
+  if (lastA.current.a !== a || lastA.current.v0 !== v0 || lastA.current.x0 !== x0) {
+    lastA.current = { a, v0, x0 };
+    initRef.current = false;
+  }
   const reset = () => { initRef.current = false; setTick((n) => n + 1); };
 
   const ref = useCanvasLoop(({ ctx, w, h, fg, muted }) => {
@@ -217,12 +215,10 @@ export function ProjectileSim() {
   const stateRef = useRef({ x: 0, y: 0, vx: 0, vy: 0, t: 0, flying: false, landed: false });
   const trailsRef = useRef<{ pts: [number, number][]; label: string }[]>([]);
   const paramsRef = useRef({ v0, angle, h0, g, drag });
-  useEffect(() => {
-    if (paramsRef.current.v0 !== v0 || paramsRef.current.angle !== angle || paramsRef.current.h0 !== h0 || paramsRef.current.g !== g || paramsRef.current.drag !== drag) {
-      paramsRef.current = { v0, angle, h0, g, drag };
-      stateRef.current = { x: 0, y: 0, vx: 0, vy: 0, t: 0, flying: false, landed: false };
-    }
-  }, [v0, angle, h0, g, drag]);
+  if (paramsRef.current.v0 !== v0 || paramsRef.current.angle !== angle || paramsRef.current.h0 !== h0 || paramsRef.current.g !== g || paramsRef.current.drag !== drag) {
+    paramsRef.current = { v0, angle, h0, g, drag };
+    stateRef.current = { x: 0, y: 0, vx: 0, vy: 0, t: 0, flying: false, landed: false };
+  }
   const clock = useClock();
 
   const launch = () => {
