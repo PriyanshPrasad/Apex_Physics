@@ -11,6 +11,7 @@ import { StimulusVisuals } from "@/components/questions/StimulusVisuals";
 import { stimRender } from "@/data/qgen/core";
 import type { DiagnosticQuestion } from "@/data/diagnostic";
 import { PhysicsReferenceSheet } from "@/components/PhysicsReferenceSheet";
+import { PhysicsCalculator } from "@/components/PhysicsCalculator";
 
 const DOMAIN_NAMES: Record<string, string> = {
   "f-algebra": "Algebra",
@@ -177,6 +178,7 @@ export default function Diagnostic() {
         </div>
 
         <PhysicsReferenceSheet compact />
+        <PhysicsCalculator compact />
         <p className="mt-6 text-lg font-bold leading-7">{q.prompt}</p>
         <DiagnosticVisual question={q} />
         <div className="mt-4 space-y-2">

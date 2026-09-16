@@ -13,6 +13,7 @@ import { M } from "@/components/math/Math";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { PhysicsReferenceSheet } from "@/components/PhysicsReferenceSheet";
+import { PhysicsCalculator } from "@/components/PhysicsCalculator";
 import { COURSE_FRQS, topicVariants, type FRQTask } from "@/data/frqBank";
 
 // ------------------------------------------------------------
@@ -129,6 +130,7 @@ function QuestionCard({
 
       <div className="mt-4">
         <PhysicsReferenceSheet initialCourse={q.course} compact />
+        <PhysicsCalculator compact />
         {q.stimulusRender && (
           <div className="clay-inset mb-4 p-4">
             <p className="text-xs font-extrabold uppercase tracking-wide text-muted-foreground">STIMULUS</p>
@@ -343,7 +345,7 @@ function FreeResponseCard({ task }: { task: FRQTask }) {
   return (
     <div className="clay p-6">
       <span className="clay-sm px-2.5 py-1 text-[11px] font-extrabold text-[var(--clay-primary-deep)]">{task.skill}</span>
-      <div className="mt-3"><PhysicsReferenceSheet initialCourse={task.course} compact /></div>
+      <div className="mt-3"><PhysicsReferenceSheet initialCourse={task.course} compact /><PhysicsCalculator compact /></div>
       <p className="mt-3 text-[15px] leading-7">{task.prompt}</p>
       {task.diagram && <div className="clay-inset mt-4 p-2"><QDiagram spec={task.diagram} /></div>}
       <div className="mt-4 space-y-3">

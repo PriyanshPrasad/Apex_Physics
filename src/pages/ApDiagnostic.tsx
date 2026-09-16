@@ -14,6 +14,7 @@ import { StimulusVisuals } from "@/components/questions/StimulusVisuals";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 import { PhysicsReferenceSheet } from "@/components/PhysicsReferenceSheet";
+import { PhysicsCalculator } from "@/components/PhysicsCalculator";
 
 const LENGTHS = [
   { id: "quick", label: "Quick · 12 questions", n: 12, minutes: 18 },
@@ -41,6 +42,7 @@ function LiveQuestion({ q, onDone }: { q: QEntry; onDone: (correct: boolean) => 
   return (
     <div>
       <PhysicsReferenceSheet initialCourse={q.course} compact />
+      <PhysicsCalculator compact />
       {q.stimulusRender && (
         <div className="clay-inset mb-4 p-4">
           <p className="text-xs font-extrabold uppercase tracking-wide text-muted-foreground">STIMULUS</p>
