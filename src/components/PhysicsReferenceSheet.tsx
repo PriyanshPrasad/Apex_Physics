@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { BookOpen, ChevronDown } from "lucide-react";
 import { COURSE_MAP, type CourseId } from "@/data/curriculum";
 import { M } from "@/components/math/Math";
@@ -122,13 +122,10 @@ const FORMULAS: Record<CourseId, FormulaGroup[]> = {
 export function PhysicsReferenceSheet({ initialCourse, compact = false }: { initialCourse?: CourseId; compact?: boolean }) {
   const [open, setOpen] = useState(false);
   const [course, setCourse] = useState<CourseId>(initialCourse ?? "p1");
-  const [lastInitial, setLastInitial] = useState<CourseId | undefined>(initialCourse);
 
-  // Follow a changed initial course without an effect cascade.
-  if (initialCourse !== lastInitial) {
-    setLastInitial(initialCourse);
+  useEffect(() => {
     if (initialCourse) setCourse(initialCourse);
-  }
+  }, [initialCourse]);
 
   return (
     <section className={cn("clay-sm", compact ? "mb-4" : "mb-5")} aria-label="Physics reference sheet">
