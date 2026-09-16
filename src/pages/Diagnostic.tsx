@@ -6,6 +6,10 @@ import { useProgress, masteryOf } from "@/lib/progress";
 import { COURSE_MAP, type CourseId } from "@/data/curriculum";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { QDiagram } from "@/components/questions/Diagrams";
+import { StimulusVisuals } from "@/components/questions/StimulusVisuals";
+import { stimRender } from "@/data/qgen/core";
+import type { DiagnosticQuestion } from "@/data/diagnostic";
 
 const DOMAIN_NAMES: Record<string, string> = {
   "f-algebra": "Algebra",
@@ -19,6 +23,39 @@ const DOMAIN_NAMES: Record<string, string> = {
   "f-diffeq": "Differential equations",
   "f-electricity": "Electricity",
 };
+
+function DiagnosticVisual({ question }: { question: DiagnosticQuestion }) {
+  const stimulus = question.stimulus ? stimRender(question.stimulus) : null;
+  return (
+    <div className="mt-4 space-y-4">
+      {stimulus && (
+        <section className="clay-inset p-4" aria-label={stimulus.title}>
+          <p className="text-[10px] font-extrabold uppercase tracking-[0.14em] text-muted-foreground">Stimulus</p>
+          <h2 className="mt-1 text-base font-extrabold">{stimulus.title}</h2>
+          <p className="mt-2 whitespace-pre-line text-sm leading-6">{stimulus.blurb}</p>
+          {stimulus.diagram && (
+            <figure className="mt-3">
+              <div className="clay-sm overflow-hidden p-2"><QDiagram spec={stimulus.diagram} /></div>
+              <figcaption className="mt-1 text-center text-xs text-muted-foreground">{stimulus.caption}</figcaption>
+            </figure>
+          )}
+          {stimulus.table && (
+            <figure className="mt-3 overflow-x-auto">
+              <table className="w-full min-w-[320px] text-left text-xs">
+                <thead><tr>{stimulus.table.headers.map((header) => <th key={header} className="border-b border-border/60 px-2 py-2 font-extrabold">{header}</th>)}</tr></thead>
+                <tbody>{stimulus.table.rows.map((row, rowIndex) => <tr key={rowIndex}>{row.map((cell, cellIndex) => <td key={cellIndex} className="border-b border-border/40 px-2 py-2">{cell}</td>)}</tr>)}</tbody>
+              </table>
+              <figcaption className="mt-1 text-xs text-muted-foreground">{stimulus.caption}</figcaption>
+            </figure>
+          )}
+          {stimulus.visuals && <StimulusVisuals visuals={stimulus.visuals} />}
+          {stimulus.purpose && <p className="mt-2 text-[11px] text-muted-foreground">Purpose: {stimulus.purpose}</p>}
+        </section>
+      )}
+      {question.diagram && <div className="clay-inset overflow-hidden p-2"><QDiagram spec={question.diagram} /></div>}
+    </div>
+  );
+}
 
 export default function Diagnostic() {
   const p = useProgress();
@@ -139,6 +176,7 @@ export default function Diagnostic() {
         </div>
 
         <p className="mt-6 text-lg font-bold leading-7">{q.prompt}</p>
+        <DiagnosticVisual question={q} />
         <div className="mt-4 space-y-2">
           {q.choices.map((c, i) => (
             <button
