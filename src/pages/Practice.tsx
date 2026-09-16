@@ -1,7 +1,6 @@
-import { useMemo, useState, useCallback, useEffect, useRef } from "react";
-import { Link } from "react-router";
-import { ArrowRight, Lightbulb, RotateCcw, Shuffle, PenLine, Check, Play, Target, Timer, Zap, X } from "lucide-react";
-import { CONCEPTS, COURSE_MAP, UNITS, type CourseId } from "@/data/curriculum";
+import { useMemo, useState, useCallback, useEffect } from "react";
+import { ArrowRight, RotateCcw, Shuffle, PenLine, Check, Play } from "lucide-react";
+import { COURSE_MAP, UNITS, type CourseId } from "@/data/curriculum";
 import {
   filterQuestions, pickSmart, buildSet, bankStats, AP_SKILL_LABELS, DIFFICULTY_LABELS, DIFFICULTY_ORDER, REPRESENTATION_LABELS, SKILL_LABELS, ARCHETYPE_COUNT,
   type APSkill, type QEntry, type Difficulty, type QuestionType, type Representation, type SelectionCtx,
@@ -269,7 +268,7 @@ const FRQ_RESOURCES: Record<CourseId, { label: string; url: string }> = {
   cem: { label: "AP Physics C: E&M official past FRQs & scoring", url: "https://apcentral.collegeboard.org/courses/ap-physics-c-electricity-and-magnetism/exam/past-exam-questions" },
 };
 
-const LEGACY_FREE_RESPONSE_TASKS = [
+const FREE_RESPONSE_TASKS: FRQTask[] = [...COURSE_FRQS, ...UNITS.flatMap((unit) => topicVariants(unit))];
   {
     id: "fr-energy", course: "p1" as CourseId, skill: "Qualitative/Quantitative Translation",
     prompt: "A block slides down a frictionless ramp from height h, then along a rough horizontal surface (coefficient μₖ) and stops after distance d.",
