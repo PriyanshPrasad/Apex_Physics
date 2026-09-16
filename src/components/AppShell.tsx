@@ -123,7 +123,7 @@ export default function AppShell() {
   return (
     <div className="flex min-h-screen">
       {/* Sidebar */}
-      <aside className="sticky top-0 hidden h-screen w-60 shrink-0 flex-col gap-1 overflow-y-auto border-r border-sidebar-border bg-sidebar p-4 md:flex">
+      <aside className="app-sidebar sticky top-0 hidden h-screen w-60 shrink-0 flex-col gap-1 overflow-y-auto border-r border-sidebar-border bg-sidebar p-4 md:flex">
         <Link to="/dashboard" className="mb-4 flex items-center gap-2 px-2 py-1">
           <div className="clay-sm flex h-10 w-10 items-center justify-center bg-[var(--clay-4)] text-lg text-white">⚛</div>
           <div>
@@ -158,7 +158,7 @@ export default function AppShell() {
 
       {/* Main column */}
       <div className="min-w-0 flex-1">
-        <header className="sticky top-0 z-20 flex items-center gap-3 bg-background/80 px-4 py-3 backdrop-blur md:px-8">
+        <header className="app-topbar sticky top-0 z-20 flex items-center gap-3 bg-background/80 px-4 py-3 backdrop-blur md:px-8">
           <Link to="/dashboard" className="clay-sm flex h-9 w-9 items-center justify-center bg-[var(--clay-4)] text-white md:hidden">⚛</Link>
           <button
             onClick={() => setSearchOpen(true)}
