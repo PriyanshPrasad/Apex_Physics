@@ -1,67 +1,18 @@
-import { useEffect, useState } from "react";
-
-const SESSION_KEY = "ap-physics-local-session-v1";
-const SESSION_EVENT = "ap-physics-session-change";
-
-type LocalUser = {
-  id: string;
-  name: string;
-  isLocal: true;
-};
-
-function readSession(): LocalUser | null {
-  try {
-    const raw = localStorage.getItem(SESSION_KEY);
-    if (!raw) return null;
-    const parsed = JSON.parse(raw) as LocalUser;
-    return parsed?.id && parsed.isLocal ? parsed : null;
-  } catch {
-    return null;
-  }
-}
-
-function notifySessionChange() {
-  window.dispatchEvent(new Event(SESSION_EVENT));
-}
+import { api } from "@/convex/_generated/api";
+import { useAuthActions } from "@convex-dev/auth/react";
+import { useConvexAuth, useQuery } from "convex/react";
 
 export function useAuth() {
-  const [user, setUser] = useState<LocalUser | null>(() => readSession());
-  const [isLoading, setIsLoading] = useState(false);
+  const { isLoading: isAuthLoading, isAuthenticated } = useConvexAuth();
+  const user = useQuery(api.users.currentUser);
+  const { signIn, signOut } = useAuthActions();
 
-  useEffect(() => {
-    const sync = () => setUser(readSession());
-    window.addEventListener(SESSION_EVENT, sync);
-    window.addEventListener("storage", sync);
-    return () => {
-      window.removeEventListener(SESSION_EVENT, sync);
-      window.removeEventListener("storage", sync);
-    };
-  }, []);
-
-  const signIn = async () => {
-    setIsLoading(true);
-    const existing = readSession();
-    const next: LocalUser = existing ?? {
-      id: `local-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
-      name: "Local learner",
-      isLocal: true,
-    };
-    localStorage.setItem(SESSION_KEY, JSON.stringify(next));
-    setUser(next);
-    notifySessionChange();
-    setIsLoading(false);
-    return next;
-  };
-
-  const signOut = async () => {
-    localStorage.removeItem(SESSION_KEY);
-    setUser(null);
-    notifySessionChange();
-  };
+  // Derive isLoading directly from the dependencies instead of managing separate state
+  const isLoading = isAuthLoading || user === undefined;
 
   return {
     isLoading,
-    isAuthenticated: user !== null,
+    isAuthenticated,
     user,
     signIn,
     signOut,

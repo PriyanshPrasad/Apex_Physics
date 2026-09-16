@@ -24,7 +24,7 @@ function Auth({ redirectAfterAuth }: AuthProps = {}) {
     setIsLoading(true);
     setError(null);
     try {
-      await signIn();
+      await signIn("anonymous");
       navigate(redirect);
     } catch (err) {
       console.error("Local sign-in error:", err);
