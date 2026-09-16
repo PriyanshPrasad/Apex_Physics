@@ -18,6 +18,7 @@ const base = {
   calculatorAllowed: false,
   isOriginal: true,
   sourceType: "original-hand" as const,
+  visualType: "none" as const,
 };
 
 export const PREREQ_QUESTIONS: QEntry[] = [

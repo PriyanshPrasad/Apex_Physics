@@ -15,7 +15,8 @@ import { EM } from "@/data/qgen/em";
 import { CALC } from "@/data/qgen/calc";
 import { RC } from "@/data/qgen/rc";
 import { THERMO } from "@/data/qgen/thermo";
-import type { APSkill, Difficulty, QuestionType, Representation, ResponseType } from "@/data/qgen/core";
+import { VISUALS } from "@/data/qgen/visuals";
+import type { APSkill, Difficulty, QuestionType, Representation, ResponseType, VisualType } from "@/data/qgen/core";
 import type { StimulusSpec, StimulusRender } from "@/data/qgen/core";
 export type { StimulusSpec, StimulusRender } from "@/data/qgen/core";
 import { stimRender, type RawQ } from "@/data/qgen/core";
@@ -46,6 +47,7 @@ const ARCHETYPES = [
   ...CALC,
   ...RC,
   ...THERMO,
+  ...VISUALS,
 ];
 
 export const ARCHETYPE_COUNT = ARCHETYPES.length;
@@ -87,6 +89,7 @@ export interface QEntry extends BankQuestion {
   calculatorAllowed: boolean;
   isOriginal: boolean;
   sourceType: "original-hand" | "original-generated" | "official-link";
+  visualType: VisualType;
   subtopic: string;
   skills: APSkill[];
   representations: Representation[];
@@ -196,6 +199,7 @@ export function getBank(): QEntry[] {
     calculatorAllowed: true,
     isOriginal: true,
     sourceType: "original-hand",
+    visualType: q.diagram ? "diagram" : "none",
 
     tempt: q.choices.map((_, index) => index === q.correct ? undefined : `This choice reflects a common mistake: ${q.commonMistake}`),
   }));
@@ -274,6 +278,7 @@ export function getBank(): QEntry[] {
         calculatorAllowed: true,
         isOriginal: true,
         sourceType: "original-generated",
+        visualType: stimSpec ? (raw.diagram ? "multi-representation" : "stimulus") : raw.diagram ? (raw.diagram.kind === "vgraph" || raw.diagram.kind === "pv" ? "graph" : "diagram") : "none",
       });
     }
   }

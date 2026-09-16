@@ -25,6 +25,7 @@ export type APSkill =
 
 export type Representation = "written-description" | "equation" | "graph" | "diagram" | "table" | "data" | "circuit" | "pv-diagram";
 export type ResponseType = "multiple-choice" | "numerical-response" | "qualitative-response" | "graph-selection" | "diagram-selection" | "experimental-analysis" | "representation-translation" | "multi-part";
+export type VisualType = "none" | "graph" | "diagram" | "table" | "stimulus" | "multi-representation";
 
 export const AP_SKILL_LABELS: Record<APSkill, string> = {
   "conceptual-reasoning": "Conceptual reasoning",
@@ -121,6 +122,7 @@ export interface RawQ {
   prerequisites?: string[];
   responseType?: ResponseType;
   solutionSteps?: string[];
+  visualType?: VisualType;
 }
 
 export interface Archetype {
@@ -137,6 +139,7 @@ export interface Archetype {
   representations?: Representation[];
   prerequisites?: string[];
   responseType?: ResponseType;
+  visualType?: VisualType;
   /** Stimulus-set membership: archetypes sharing this key describe the same scenario per variant. */
   shared?: string;
   /** Stimulus shown above the prompt (shared across the set; regenerated per variant). */

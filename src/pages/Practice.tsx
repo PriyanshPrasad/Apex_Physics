@@ -7,7 +7,7 @@ import {
   type APSkill, type QEntry, type Difficulty, type QuestionType, type Representation, type SelectionCtx,
 } from "@/data/qbank";
 import { useProgress, progress, masteryOf } from "@/lib/progress";
-import { QDiagram } from "@/components/questions/Diagrams";
+import { QDiagram, type DiagramSpec } from "@/components/questions/Diagrams";
 import { M } from "@/components/math/Math";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -264,6 +264,7 @@ const FREE_RESPONSE_TASKS = [
   {
     id: "fr-energy", course: "p1" as CourseId, skill: "Qualitative/Quantitative Translation",
     prompt: "A block slides down a frictionless ramp from height h, then along a rough horizontal surface (coefficient μₖ) and stops after distance d.",
+    diagram: { kind: "fbd", scene: "incline", labels: ["mg", "F_N", "f"] } as DiagramSpec,
     parts: [
       "Part A (reasoning): Explain why energy methods, not kinematics, are the efficient approach on the rough surface.",
       "Part B (derive): Show that d = h/μₖ using energy conservation with friction work.",
@@ -279,6 +280,7 @@ const FREE_RESPONSE_TASKS = [
   {
     id: "fr-circuits", course: "p2" as CourseId, skill: "Experimental Design",
     prompt: "You have a battery, two resistors, an ammeter, a voltmeter, wires, and a switch. Design an experiment to determine an unknown resistance.",
+    diagram: { kind: "circuit", layout: "rcMeter", labels: ["ε", "R", "A"] } as DiagramSpec,
     parts: [
       "Part A: State the measurements and how each meter must be connected.",
       "Part B: Explain how to combine Ohm's law with the measurements to obtain R.",
@@ -294,6 +296,7 @@ const FREE_RESPONSE_TASKS = [
   {
     id: "fr-momentum", course: "cm" as CourseId, skill: "Mathematical Routines",
     prompt: "Cart A (mass 2m) moves at speed v toward stationary cart B (mass m). They collide elastically.",
+    diagram: { kind: "collision", m1: 2, v1: 3, m2: 1, v2: 0, note: "before collision" } as DiagramSpec,
     parts: [
       "Part A: Write the two conservation equations that apply.",
       "Part B: Solve for both final speeds symbolically.",
@@ -309,6 +312,7 @@ const FREE_RESPONSE_TASKS = [
   {
     id: "fr-rc", course: "cem" as CourseId, skill: "Derivation (Physics C)",
     prompt: "A capacitor C charged to V₀ discharges through resistor R starting at t = 0.",
+    diagram: { kind: "circuit", layout: "batteryCapacitor", labels: ["V₀", "C"] } as DiagramSpec,
     parts: [
       "Part A: Write the loop rule and the relation between I and dQ/dt (mind the sign).",
       "Part B: Separate variables and integrate to find Q(t).",
@@ -331,6 +335,7 @@ function FreeResponseCard({ task }: { task: (typeof FREE_RESPONSE_TASKS)[number]
     <div className="clay p-6">
       <span className="clay-sm px-2.5 py-1 text-[11px] font-extrabold text-[var(--clay-primary-deep)]">{task.skill}</span>
       <p className="mt-3 text-[15px] leading-7">{task.prompt}</p>
+      {task.diagram && <div className="clay-inset mt-4 p-2"><QDiagram spec={task.diagram} /></div>}
       <div className="mt-4 space-y-3">
         {task.parts.map((part, i) => (
           <div key={i}>
