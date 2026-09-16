@@ -269,6 +269,73 @@ const FRQ_RESOURCES: Record<CourseId, { label: string; url: string }> = {
   cem: { label: "AP Physics C: E&M official past FRQs & scoring", url: "https://apcentral.collegeboard.org/courses/ap-physics-c-electricity-and-magnetism/exam/past-exam-questions" },
 };
 
+const LEGACY_FREE_RESPONSE_TASKS = [
+  {
+    id: "fr-energy", course: "p1" as CourseId, skill: "Qualitative/Quantitative Translation",
+    prompt: "A block slides down a frictionless ramp from height h, then along a rough horizontal surface (coefficient μₖ) and stops after distance d.",
+    diagram: { kind: "fbd", scene: "incline", labels: ["mg", "F_N", "f"] } as DiagramSpec,
+    parts: [
+      "Part A (reasoning): Explain why energy methods, not kinematics, are the efficient approach on the rough surface.",
+      "Part B (derive): Show that d = h/μₖ using energy conservation with friction work.",
+      "Part C (justify): A student claims doubling h doubles d. Agree or disagree, citing your equation.",
+    ],
+    rubric: [
+      "Names the system; states friction dissipates mechanical energy into thermal energy",
+      "Writes mgh = μₖmg·d (or W_friction = ΔK) before substituting numbers",
+      "Solves symbolically first: d = h/μₖ — mass cancels",
+      "Agrees: d ∝ h, so doubling h doubles d; cites the derived equation",
+    ],
+  },
+  {
+    id: "fr-circuits", course: "p2" as CourseId, skill: "Experimental Design",
+    prompt: "You have a battery, two resistors, an ammeter, a voltmeter, wires, and a switch. Design an experiment to determine an unknown resistance.",
+    diagram: { kind: "circuit", layout: "rcMeter", labels: ["ε", "R", "A"] } as DiagramSpec,
+    parts: [
+      "Part A: State the measurements and how each meter must be connected.",
+      "Part B: Explain how to combine Ohm's law with the measurements to obtain R.",
+      "Part C: Describe one systematic error that would bias R, and a fix.",
+    ],
+    rubric: [
+      "Ammeter in series with the resistor; voltmeter in parallel across it",
+      "Record V and I; compute R = V/I, ideally several trials",
+      "Graph V vs I and use the slope as R to reduce random error",
+      "Identifies meter loading or ammeter resistance; proposes a correction",
+    ],
+  },
+  {
+    id: "fr-momentum", course: "cm" as CourseId, skill: "Mathematical Routines",
+    prompt: "Cart A (mass 2m) moves at speed v toward stationary cart B (mass m). They collide elastically.",
+    diagram: { kind: "collision", m1: 2, v1: 3, m2: 1, v2: 0, note: "before collision" } as DiagramSpec,
+    parts: [
+      "Part A: Write the two conservation equations that apply.",
+      "Part B: Solve for both final speeds symbolically.",
+      "Part C: Check the equal-mass special case — does it match the known result?",
+    ],
+    rubric: [
+      "Momentum: 2m·v = 2m·v_A + m·v_B",
+      "Elastic K: ½(2m)v² = ½(2m)v_A² + ½mv_B²",
+      "v_A = v/3, v_B = 4v/3",
+      "Equal masses → velocities exchange — the limiting check",
+    ],
+  },
+  {
+    id: "fr-rc", course: "cem" as CourseId, skill: "Derivation (Physics C)",
+    prompt: "A capacitor C charged to V₀ discharges through resistor R starting at t = 0.",
+    diagram: { kind: "circuit", layout: "batteryCapacitor", labels: ["V₀", "C"] } as DiagramSpec,
+    parts: [
+      "Part A: Write the loop rule and the relation between I and dQ/dt (mind the sign).",
+      "Part B: Separate variables and integrate to find Q(t).",
+      "Part C: Derive the time at which the charge reaches half its initial value.",
+    ],
+    rubric: [
+      "Q/C − IR = 0 with I = −dQ/dt (discharging sign convention)",
+      "dQ/Q = −dt/RC → ln(Q/Q₀) = −t/RC → Q = Q₀e^(−t/RC)",
+      "Set e^(−t/RC) = ½ → t = RC·ln2",
+      "Notes the decay is exponential, not linear (no credit for t = RC/2)",
+    ],
+  },
+];
+
 const FREE_RESPONSE_TASKS: FRQTask[] = [...COURSE_FRQS, ...UNITS.flatMap((unit) => topicVariants(unit))];
 
 function FreeResponseCard({ task }: { task: FRQTask }) {
