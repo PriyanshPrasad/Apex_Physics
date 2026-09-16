@@ -569,7 +569,7 @@ export default function Lesson() {
 function ConceptCheck({ qid, onNext }: { qid: string; onNext: () => void }) {
   const q = CONCEPT_QUESTIONS[qid];
   const [picked, setPicked] = useState<number | null>(null);
-  if (!q) return <p className="mt-3 text-sm text-muted-foreground">Check coming soon.</p>;
+  if (!q) return <p className="mt-3 text-sm text-muted-foreground">This concept has no saved check yet. Continue with the worked example and practice set.</p>;
   return (
     <div className="mt-4 space-y-2">
       {q.choices.map((c, i) => (
