@@ -1,6 +1,5 @@
-import { useMemo, useState, useCallback, useEffect, useRef } from "react";
-import { Link } from "react-router";
-import { ArrowRight, Lightbulb, RotateCcw, Shuffle, PenLine, Check, Play, Target, Timer, Zap, X } from "lucide-react";
+import { useMemo, useState, useCallback, useEffect } from "react";
+import { ArrowRight, RotateCcw, Shuffle, PenLine, Check, Play } from "lucide-react";
 import { CONCEPTS, COURSE_MAP, UNITS, type CourseId } from "@/data/curriculum";
 import {
   filterQuestions, pickSmart, buildSet, bankStats, AP_SKILL_LABELS, DIFFICULTY_LABELS, DIFFICULTY_ORDER, REPRESENTATION_LABELS, SKILL_LABELS, ARCHETYPE_COUNT,

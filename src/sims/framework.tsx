@@ -27,12 +27,15 @@ export function useCanvasLoop(
 ) {
   const ref = useRef<HTMLCanvasElement>(null);
   const drawRef = useRef(draw);
-  drawRef.current = draw;
   const runningRef = useRef(opts.running ?? true);
-  runningRef.current = opts.running ?? true;
   const resetKeyRef = useRef(opts.resetKey);
   const tRef = useRef(0);
   const lastRef = useRef(0);
+  // Keep the latest props in refs without touching them during render.
+  useEffect(() => {
+    drawRef.current = draw;
+    runningRef.current = opts.running ?? true;
+  });
   useEffect(() => {
     const canvas = ref.current;
     if (!canvas) return;

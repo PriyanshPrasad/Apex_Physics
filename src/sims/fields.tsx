@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useCanvasLoop, SimFrame, SimRow, Slider, Toggle, arrow, grid, ball } from "./framework";
 import { SimShell } from "./SimShell";
 
@@ -389,12 +389,14 @@ export function RCSim() {
   const startRef = useRef(charging);
   const paramsRef = useRef({ V0, R, C });
   // changing components mid-flight changes τ going forward — keep the trace honest
-  if (paramsRef.current.V0 !== V0 || paramsRef.current.R !== R || paramsRef.current.C !== C) {
-    paramsRef.current = { V0, R, C };
-    traceRef.current = [];
-    tRef.current = 0;
-    startRef.current = charging;
-  }
+  useEffect(() => {
+    if (paramsRef.current.V0 !== V0 || paramsRef.current.R !== R || paramsRef.current.C !== C) {
+      paramsRef.current = { V0, R, C };
+      traceRef.current = [];
+      tRef.current = 0;
+      startRef.current = charging;
+    }
+  }, [V0, R, C, charging]);
   const clock = useClock();
   const reset = () => { tRef.current = 0; traceRef.current = []; startRef.current = charging; setTick((n) => n + 1); };
 
@@ -524,10 +526,12 @@ export function CircuitBuilderSim() {
   const capRef = useRef<Comp | null>(null);
   const circuitKey = comps.map((c) => `${c.id}:${c.value}`).join("|");
   const paramsRef = useRef(circuitKey);
-  if (paramsRef.current !== circuitKey) {
-    paramsRef.current = circuitKey;
-    rcStart.current = tRef.current; // any circuit change restarts the RC transient
-  }
+  useEffect(() => {
+    if (paramsRef.current !== circuitKey) {
+      paramsRef.current = circuitKey;
+      rcStart.current = tRef.current; // any circuit change restarts the RC transient
+    }
+  }, [circuitKey]);
 
   const totalR = comps.filter((c) => c.type === "resistor" || c.type === "bulb").reduce((s, c) => s + c.value, 0);
   const batV = comps.find((c) => c.type === "battery")?.value ?? 0;
