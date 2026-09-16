@@ -129,7 +129,7 @@ function QuestionCard({
           <div className="clay-inset mb-4 p-4">
             <p className="text-xs font-extrabold uppercase tracking-wide text-muted-foreground">Stimulus</p>
             <p className="mt-2 whitespace-pre-line text-sm leading-6">{q.stimulusRender.blurb}</p>
-            {q.stimulusRender.diagram && <QDiagram spec={q.stimulusRender.diagram} />}
+            {q.stimulusRender.diagram && <button type="button" onClick={() => setShowDiagramZoom((z) => !z)} aria-label="Expand stimulus visual" className="clay-sm mt-3 block w-full cursor-zoom-in overflow-hidden p-2 text-left"><div className={cn("mx-auto transition-all", showDiagramZoom ? "max-w-3xl" : "max-w-xl")}><QDiagram spec={q.stimulusRender.diagram} /></div></button>}
             {q.stimulusRender.table && (
               <div className="mt-3 overflow-x-auto">
                 <table className="w-full min-w-[320px] text-left text-xs">
@@ -518,7 +518,7 @@ export default function Practice() {
         <div>
           <h1 className="text-3xl font-extrabold tracking-tight">Practice</h1>
           <p className="text-sm text-muted-foreground">
-            {stats.total} AP-style questions · {stats.hand} hand-written + {stats.gen} generated variants across {ARCHETYPE_COUNT} reasoning archetypes
+            {stats.total} original AP-style questions · {stats.visualPct}% visual/stimulus-based · {stats.hand} curated + {stats.gen} generated variants across {ARCHETYPE_COUNT} reasoning archetypes
           </p>
         </div>
         <div className="clay-sm flex overflow-hidden p-1">

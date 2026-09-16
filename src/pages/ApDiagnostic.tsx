@@ -33,6 +33,7 @@ function stepDown(d: Difficulty): Difficulty {
 function LiveQuestion({ q, onDone }: { q: QEntry; onDone: (correct: boolean) => void }) {
   const [selected, setSelected] = useState<number | null>(null);
   const [checked, setChecked] = useState(false);
+  const [showVisualZoom, setShowVisualZoom] = useState(false);
   const ok = selected === q.correct;
 
   return (
@@ -41,7 +42,7 @@ function LiveQuestion({ q, onDone }: { q: QEntry; onDone: (correct: boolean) => 
         <div className="clay-inset mb-4 p-4">
           <p className="text-xs font-extrabold uppercase tracking-wide text-muted-foreground">Stimulus</p>
           <p className="mt-2 whitespace-pre-line text-sm leading-6">{q.stimulusRender.blurb}</p>
-          {q.stimulusRender.diagram && <QDiagram spec={q.stimulusRender.diagram} />}
+          {q.stimulusRender.diagram && <button type="button" onClick={() => setShowVisualZoom((value) => !value)} aria-label="Expand stimulus visual" className="clay-sm mt-3 block w-full cursor-zoom-in overflow-hidden p-2 text-left"><div className={cn("mx-auto transition-all", showVisualZoom ? "max-w-3xl" : "max-w-xl")}><QDiagram spec={q.stimulusRender.diagram} /></div></button>}
           {q.stimulusRender.table && (
             <div className="mt-3 overflow-x-auto">
               <table className="w-full min-w-[320px] text-left text-xs">
@@ -54,9 +55,9 @@ function LiveQuestion({ q, onDone }: { q: QEntry; onDone: (correct: boolean) => 
       )}
       <p className="whitespace-pre-line text-[15px] leading-7">{q.prompt}</p>
       {q.diagram && (
-        <div className="clay-inset mt-3 p-2">
-          <QDiagram spec={q.diagram} />
-        </div>
+        <button type="button" onClick={() => setShowVisualZoom((value) => !value)} aria-label="Expand question visual" className="clay-inset mt-3 block w-full cursor-zoom-in overflow-hidden p-2 text-left">
+          <div className={cn("mx-auto transition-all", showVisualZoom ? "max-w-3xl" : "max-w-xl")}><QDiagram spec={q.diagram} /></div>
+        </button>
       )}
       <div className="mt-4 grid gap-2 sm:grid-cols-2">
         {q.choices.map((c, i) => (

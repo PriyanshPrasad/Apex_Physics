@@ -333,12 +333,14 @@ export const bankStats = () => {
   const byCourse = {} as Record<CourseId, number>;
   const byDiff = {} as Record<Difficulty, number>;
   const byType = {} as Record<QuestionType, number>;
+  let visual = 0;
   for (const q of bank) {
+    if (q.visualType !== "none" || q.stimulusId) visual++;
     byCourse[q.course] = (byCourse[q.course] ?? 0) + 1;
     byDiff[q.difficulty] = (byDiff[q.difficulty] ?? 0) + 1;
     byType[q.type] = (byType[q.type] ?? 0) + 1;
   }
-  return { total: bank.length, hand: bank.filter((q) => q.source === "hand").length, gen: bank.filter((q) => q.source === "gen").length, byCourse, byDiff, byType };
+  return { total: bank.length, hand: bank.filter((q) => q.source === "hand").length, gen: bank.filter((q) => q.source === "gen").length, visual, visualPct: bank.length ? Math.round((visual / bank.length) * 100) : 0, byCourse, byDiff, byType };
 };
 
 // ------------------------------------------------------------
