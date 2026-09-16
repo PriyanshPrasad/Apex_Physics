@@ -18,7 +18,7 @@ import { THERMO } from "@/data/qgen/thermo";
 import { VISUALS } from "@/data/qgen/visuals";
 import type { APSkill, Difficulty, QuestionType, Representation, ResponseType, VisualType } from "@/data/qgen/core";
 import type { StimulusSpec, StimulusRender } from "@/data/qgen/core";
-export type { StimulusSpec, StimulusRender } from "@/data/qgen/core";
+export type { StimulusSpec, StimulusRender, StimulusVisual } from "@/data/qgen/core";
 import { stimRender, type RawQ } from "@/data/qgen/core";
 
 export type { Difficulty, QuestionType, BankQuestion, BankFilters };
@@ -101,11 +101,26 @@ export interface QEntry extends BankQuestion {
 // it is allowed into the bank. Broken questions are dropped and
 // logged rather than silently served to students.
 // ------------------------------------------------------------
+function validateDiagram(diagram: RawQ["diagram"]): string | null {
+  if (!diagram) return null;
+  if (diagram.kind === "vgraph" && (!diagram.graph || !diagram.shape)) return "graph visual is missing its physical variables";
+  if (diagram.kind === "fbd" && diagram.labels.length < 2) return "free-body diagram needs labeled force vectors";
+  if (diagram.kind === "circuit" && (!diagram.layout || (diagram.labels && diagram.labels.length === 0))) return "circuit diagram needs a topology and component labels";
+  if (diagram.kind === "charges" && diagram.q.length < 1) return "field diagram needs at least one charge";
+  if (diagram.kind === "pv" && (diagram.points.length < 2 || diagram.points.some(([v, p]) => !Number.isFinite(v) || !Number.isFinite(p) || v < 0 || v > 1 || p < 0 || p > 1))) return "P–V diagram has invalid normalized points";
+  if (diagram.kind === "table" && (diagram.headers.length < 2 || diagram.rows.some((row) => row.length !== diagram.headers.length))) return "diagram table has inconsistent columns";
+  return null;
+}
+
 function validateRaw(archId: string, raw: RawQ): string | null {
   if (!raw || typeof raw !== "object") return "not an object";
   if (typeof raw.prompt !== "string" || raw.prompt.trim().length < 15) return "prompt missing/too short";
   if (raw.prompt.includes("undefined") || raw.prompt.includes("[object")) return "prompt contains 'undefined' or '[object]'";
   if (raw.prompt.includes("\\n")) return "prompt contains literal backslash-n";
+  const diagramFailure = validateDiagram(raw.diagram);
+  if (diagramFailure) return diagramFailure;
+  const stimulusDiagramFailure = raw.stimulus?.kind === "diagram" ? validateDiagram(raw.stimulus.diagram) : null;
+  if (stimulusDiagramFailure) return `stimulus ${stimulusDiagramFailure}`;
   if (!Array.isArray(raw.choices) || raw.choices.length !== 4) return "must have exactly 4 choices";
   for (const c of raw.choices) {
     if (typeof c !== "string" || c.trim().length === 0) return "empty choice text";
@@ -124,12 +139,24 @@ function validateRaw(archId: string, raw: RawQ): string | null {
   const stimulus = raw.stimulus;
   if (stimulus) {
     if (stimulus.blurb.trim().length < 20) return "stimulus blurb missing/too short";
+    if (stimulus.kind === "composite") {
+      if (stimulus.visuals.length < 2 || stimulus.visuals.some((visual) => !visual.caption.trim())) return "composite stimulus needs multiple captioned visuals";
+      for (const visual of stimulus.visuals) {
+        if (visual.kind === "diagram") {
+          const visualFailure = validateDiagram(visual.diagram);
+          if (visualFailure) return `composite ${visualFailure}`;
+        } else if (visual.headers.length < 2 || visual.rows.length < 2 || visual.headers.some((header) => !/\([^()]+\)/.test(header) && !/condition|state|trial|sample/i.test(header))) {
+          return "composite table needs labeled columns with units";
+        }
+      }
+    }
     if (stimulus.title !== undefined && stimulus.title.trim().length < 5) return "stimulus title missing/too short";
-    if (stimulus.caption !== undefined && stimulus.caption.trim().length < 12) return "stimulus caption missing/too short";
+    if ("caption" in stimulus && stimulus.caption !== undefined && stimulus.caption.trim().length < 12) return "stimulus caption missing/too short";
     if (stimulus.kind === "table") {
       const { headers, rows } = stimulus;
       if (headers.length < 2 || rows.length < 2) return "stimulus table needs headers and data rows";
       if (headers.some((header) => !header.trim() || /^(x|y|value|data)$/i.test(header.trim()))) return "stimulus table needs physical column labels";
+      if (headers.some((header) => !/\([^()]+\)/.test(header) && !/condition|state|trial|sample/i.test(header))) return "stimulus table columns need units or an explicit categorical label";
       if (rows.some((row) => row.length !== headers.length || row.some((cell) => !cell.trim()))) return "stimulus table has malformed rows";
     }
     if (stimulus.kind === "pv" && stimulus.points.length < 2) return "P–V stimulus needs at least two points";

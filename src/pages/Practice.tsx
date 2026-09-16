@@ -8,6 +8,7 @@ import {
 } from "@/data/qbank";
 import { useProgress, progress, masteryOf } from "@/lib/progress";
 import { QDiagram, type DiagramSpec } from "@/components/questions/Diagrams";
+import { StimulusVisuals } from "@/components/questions/StimulusVisuals";
 import { M } from "@/components/math/Math";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -127,18 +128,20 @@ function QuestionCard({
       <div className="mt-4">
         {q.stimulusRender && (
           <div className="clay-inset mb-4 p-4">
-            <p className="text-xs font-extrabold uppercase tracking-wide text-muted-foreground">Stimulus</p>
+            <p className="text-xs font-extrabold uppercase tracking-wide text-muted-foreground">STIMULUS</p>
             <h3 className="mt-1 text-lg font-extrabold">{q.stimulusRender.title}</h3>
-            <p className="mt-2 whitespace-pre-line text-sm leading-6">{q.stimulusRender.blurb}</p>
-            {q.stimulusRender.diagram && <figure className="mt-3"><button type="button" onClick={() => setShowDiagramZoom((z) => !z)} aria-label="Expand stimulus visual" className="clay-sm block w-full cursor-zoom-in overflow-hidden p-2 text-left"><div className={cn("mx-auto transition-all", showDiagramZoom ? "max-w-3xl" : "max-w-xl")}><QDiagram spec={q.stimulusRender.diagram} /></div></button><figcaption className="mt-1 text-center text-xs text-muted-foreground">{q.stimulusRender.caption}</figcaption></figure>}
+            <p className="mt-3 text-[10px] font-extrabold uppercase tracking-[0.14em] text-muted-foreground">{q.stimulusRender.scenarioLabel}</p>
+            <p className="mt-1 whitespace-pre-line text-sm leading-6">{q.stimulusRender.blurb}</p>
+            {q.stimulusRender.diagram && <figure className="mt-3"><p className="mb-1 text-[10px] font-extrabold uppercase tracking-wide text-muted-foreground">{q.stimulusRender.block.label}</p><button type="button" onClick={() => setShowDiagramZoom((z) => !z)} aria-label="Expand stimulus visual" className="clay-sm block w-full cursor-zoom-in overflow-hidden p-2 text-left"><div className={cn("mx-auto transition-all", showDiagramZoom ? "max-w-3xl" : "max-w-xl")}><QDiagram spec={q.stimulusRender.diagram} /></div></button><figcaption className="mt-1 text-center text-xs text-muted-foreground">{q.stimulusRender.caption}</figcaption>{q.stimulusRender.purpose && <p className="mt-1 text-center text-[11px] text-muted-foreground">Purpose: {q.stimulusRender.purpose}</p>}</figure>}
             {q.stimulusRender.table && (
-              <figure className="mt-3 overflow-x-auto"><figcaption className="mb-1 text-xs font-semibold text-muted-foreground">{q.stimulusRender.caption}</figcaption>
+              <figure className="mt-3 overflow-x-auto"><p className="mb-1 text-[10px] font-extrabold uppercase tracking-wide text-muted-foreground">{q.stimulusRender.block.label}</p><figcaption className="mb-1 text-xs font-semibold text-muted-foreground">{q.stimulusRender.caption}</figcaption>
                 <table className="w-full min-w-[320px] text-left text-xs">
                   <thead><tr>{q.stimulusRender.table.headers.map((h) => <th key={h} className="border-b border-border/60 px-2 py-2 font-extrabold">{h}</th>)}</tr></thead>
                   <tbody>{q.stimulusRender.table.rows.map((row, i) => <tr key={i}>{row.map((cell, j) => <td key={j} className="border-b border-border/40 px-2 py-2">{cell}</td>)}</tr>)}</tbody>
                 </table>
               </figure>
             )}
+            {q.stimulusRender.visuals && <StimulusVisuals visuals={q.stimulusRender.visuals} />}
             {q.stimulusRender.note && <p className="mt-2 text-xs text-muted-foreground">{q.stimulusRender.note}</p>}
           </div>
         )}

@@ -8,7 +8,11 @@ const GAS = ["helium sample", "sealed piston of air", "argon chamber", "laborato
 function pistonStimulus(r: () => number) {
   const pressure = ri(2, 6, r);
   const rows = [1, 2, 3, 4].map((volume) => [String(volume), fmt(pressure * volume), "constant temperature"]);
-  return { pressure, stimulus: { kind: "table" as const, headers: ["Volume (L)", "Pressure (kPa)", "Condition"], rows, blurb: "A student slowly changes the volume of a sealed gas sample while maintaining constant temperature. The pressure is recorded after the piston settles." } };
+  return { pressure, stimulus: { kind: "composite" as const, title: "Isothermal compression of a sealed gas", visuals: [
+    { kind: "diagram" as const, diagram: { kind: "piston" as const, temp: 300, vol: 0.72, note: "sealed sample; piston moves slowly" }, caption: "Figure 1. Sealed gas sample in a movable piston.", purpose: "The piston changes volume while the sample remains at approximately constant temperature." },
+    { kind: "table" as const, headers: ["Volume (L)", "Pressure (kPa)", "Condition"], rows, caption: "Table 1. Measured pressure and volume for a sealed gas sample.", purpose: "The measurements are taken after the piston settles at each volume." },
+    { kind: "diagram" as const, diagram: { kind: "pv" as const, points: [[0.25, 1], [0.5, 0.5], [0.75, 0.333], [1, 0.25]] as [number, number][], labels: ["A", "B", "C", "D"], note: "normalized model path" }, caption: "Figure 2. Pressure–volume relationship represented by the measured trend.", purpose: "Use the direction and shape of the path to connect the table to the ideal-gas model." },
+  ], blurb: "A student slowly changes the volume of a sealed gas sample while maintaining constant temperature. The pressure is recorded after the piston settles." } };
 }
 
 export const THERMO: Archetype[] = [
@@ -17,7 +21,7 @@ export const THERMO: Archetype[] = [
     difficulty: "hard", type: "experimental",
     gen: (r): RawQ => {
       const { pressure, stimulus } = pistonStimulus(r);
-      return { stimulus, prompt: "Which graph would best test whether the data support the ideal-gas relationship for this isothermal process?", choices: ["P versus V, which should be linear", "P versus 1/V, which should be linear", "P versus V², which should be linear", "V versus P², which should be linear"], correct: 1, tempt: ["An isotherm is not P ∝ V; pressure decreases as volume increases.", undefined, "The model predicts an inverse relationship, not an inverse-square relationship.", "The axes and exponent do not produce the straight-line form P = constant/V."], explanation: `For constant temperature and amount of gas, PV = constant, so P = (${pressure})/V. Plotting P against 1/V should produce a straight line through the origin.`, equations: ["P = \\frac{nRT}{V}"], commonMistake: "Plotting the raw variables instead of transforming the inverse relationship.", apStrategy: "Rewrite the model in y = mx form before choosing graph axes.", category: "experimental" };
+      return { stimulus, prompt: "Based on the data in Table 1 and the representations in Figures 1 and 2, which graph would best test whether the measurements support the ideal-gas relationship for this isothermal process?", choices: ["P versus V, which should be linear", "P versus 1/V, which should be linear", "P versus V², which should be linear", "V versus P², which should be linear"], correct: 1, tempt: ["An isotherm is not P ∝ V; pressure decreases as volume increases.", undefined, "The model predicts an inverse relationship, not an inverse-square relationship.", "The axes and exponent do not produce the straight-line form P = constant/V."], explanation: `For constant temperature and amount of gas, PV = constant, so P = (${pressure})/V. Plotting P against 1/V should produce a straight line through the origin.`, equations: ["P = \\frac{nRT}{V}"], commonMistake: "Plotting the raw variables instead of transforming the inverse relationship.", apStrategy: "Rewrite the model in y = mx form before choosing graph axes.", category: "experimental" };
     },
   },
   {
@@ -25,7 +29,7 @@ export const THERMO: Archetype[] = [
     difficulty: "hard", type: "proportional-reasoning",
     gen: (r): RawQ => {
       const { pressure, stimulus } = pistonStimulus(r);
-      return { stimulus, prompt: `Using the stimulus data, if the volume is changed from 2 L to 8 L at the same temperature, the pressure should be approximately:`, choices: [`${fmt(pressure / 4)} kPa`, `${fmt(pressure * 4)} kPa`, `${fmt(pressure / 2)} kPa`, `${fmt(pressure)} kPa`], correct: 0, tempt: [undefined, "Pressure varies inversely with volume; increasing volume lowers pressure.", "The volume changes by a factor of four, not two.", "An isothermal expansion changes pressure even though temperature is fixed."], explanation: `Because PV is constant, P_2 = P_1(V_1/V_2). Moving from 2 L to 8 L divides pressure by four.`, equations: ["P_1V_1 = P_2V_2"], commonMistake: "Treating pressure as directly proportional to volume.", apStrategy: "Use a ratio form before substituting: P₂/P₁ = V₁/V₂.", category: "proportional" };
+      return { stimulus, prompt: `Using the pressure–volume relationship in Table 1 and Figure 2, if the volume is changed from 2 L to 8 L at the same temperature, the pressure should be approximately:`, choices: [`${fmt(pressure / 4)} kPa`, `${fmt(pressure * 4)} kPa`, `${fmt(pressure / 2)} kPa`, `${fmt(pressure)} kPa`], correct: 0, tempt: [undefined, "Pressure varies inversely with volume; increasing volume lowers pressure.", "The volume changes by a factor of four, not two.", "An isothermal expansion changes pressure even though temperature is fixed."], explanation: `Because PV is constant, P_2 = P_1(V_1/V_2). Moving from 2 L to 8 L divides pressure by four.`, equations: ["P_1V_1 = P_2V_2"], commonMistake: "Treating pressure as directly proportional to volume.", apStrategy: "Use a ratio form before substituting: P₂/P₁ = V₁/V₂.", category: "proportional" };
     },
   },
   {
@@ -113,7 +117,7 @@ export const THERMO: Archetype[] = [
       const rows = T.map((temp) => [String(temp), fmt(n * R * temp / V / 1000, 1)]);
       return {
         prompt: `A student holds the volume of a ${n} mol gas sample fixed and records pressure as temperature changes. The data are shown. Which graph and slope would best test the ideal-gas model?`,
-        stimulus: { kind: "table", headers: ["T (K)", "P (kPa)"], rows, blurb: "Pressure measurements for a sealed sample at constant volume." },
+        stimulus: { kind: "table", title: "Pressure–temperature calibration", caption: "Table 1. Measured pressure at constant volume for a sealed gas sample.", purpose: "Use the data to identify a linearized form of the ideal-gas relationship.", headers: ["Temperature (K)", "Pressure (kPa)"], rows, blurb: "A student holds the volume of a sealed gas sample fixed and records pressure as temperature changes." },
         choices: ["Plot P versus T; slope should be nR/V", "Plot T versus P; slope should be nR/V", "Plot P versus 1/T; slope should be nR/V", "Plot P versus V; slope should be nRT"],
         correct: 0,
         tempt: [undefined, "The relationship is P = (nR/V)T, so T is the independent horizontal variable and P is vertical.", "At fixed V, P is proportional to T, not 1/T.", "Volume is not the varied quantity in this experiment."],

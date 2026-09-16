@@ -3,7 +3,7 @@
 import { M } from "@/components/math/Math";
 
 export type DiagramSpec =
-  | { kind: "vgraph"; graph: "xt" | "vt" | "at" | "ut"; shape: string; note?: string }
+  | { kind: "vgraph"; graph: "xt" | "vt" | "at" | "ut"; shape: string; title?: string; xLabel?: string; yLabel?: string; note?: string }
   | { kind: "fbd"; scene: "incline" | "table" | "hanging"; labels: string[] }
   | { kind: "circuit"; layout?: "series2" | "parallel2" | "rcMeter" | "batteryCapacitor"; labels?: string[]; note?: string }
   | { kind: "charges"; q: ("+" | "-")[]; note?: string }
@@ -26,7 +26,7 @@ const GOLD = "#ffc46b";
 
 function Frame({ children, w = 340, h = 190 }: { children: React.ReactNode; w?: number; h?: number }) {
   return (
-    <svg viewBox={`0 0 ${w} ${h}`} className="mx-auto block max-w-full" style={{ height: 190 }} role="img">
+    <svg viewBox={`0 0 ${w} ${h}`} className="mx-auto block max-w-full" style={{ height: 190 }} role="img" aria-label="Programmatically generated physics visual">
       {children}
     </svg>
   );
@@ -75,13 +75,18 @@ function GraphPath(shape: string, graph: string): [number, number][] {
   return pts;
 }
 
-function VGraph({ graph, shape, note }: { graph: string; shape: string; note?: string }) {
+function labelForGraph(graph: string): string {
+  return graph === "xt" ? "Position as a function of time" : graph === "vt" ? "Velocity as a function of time" : graph === "ut" ? "Potential energy as a function of position" : "Acceleration as a function of time";
+}
+
+function VGraph({ graph, shape, title, xLabel, yLabel, note }: { graph: string; shape: string; title?: string; xLabel?: string; yLabel?: string; note?: string }) {
   const w = 340, h = 190, px = 44, py = 24, gw = w - px - 22, gh = h - py - 34;
   const pts = GraphPath(shape, graph);
-  const label = graph === "xt" ? "position x (m)" : graph === "vt" ? "velocity v (m/s)" : graph === "ut" ? "energy U (J)" : "acceleration a (m/s²)";
-  const xlabel = graph === "ut" ? "position x (m)" : "time t (s)";
+  const label = yLabel ?? (graph === "xt" ? "Position (m)" : graph === "vt" ? "Velocity (m/s)" : graph === "ut" ? "Potential energy (J)" : "Acceleration (m/s²)");
+  const xlabel = xLabel ?? (graph === "ut" ? "Position (m)" : "Time (s)");
   return (
     <Frame w={w} h={h}>
+      <text x={w / 2} y={12} textAnchor="middle" fontSize="10" fill={INK} fontWeight="bold">Figure 1. {title ?? labelForGraph(graph)}</text>
       <rect x={px} y={py} width={gw} height={gh} fill="none" stroke={MUTED} strokeWidth="1" opacity="0.5" />
       {[0.25, 0.5, 0.75].map((f) => (
         <g key={f}>
@@ -112,6 +117,7 @@ function FBD({ scene, labels }: { scene: string; labels: string[] }) {
     const bx = 170, by = 112;
     return (
       <Frame>
+        <text x={170} y={14} textAnchor="middle" fontSize="10" fill={INK} fontWeight="bold">Figure 1. Free-body diagram on an incline</text>
         <polygon points="30,170 310,170 30,60" fill="rgba(124,108,244,0.08)" stroke={MUTED} strokeWidth="1.5" />
         <g transform={`rotate(${-32} ${bx} ${by})`}>
           <rect x={bx - 22} y={by - 22} width={44} height={44} rx={7} fill={VIOLET} opacity="0.85" />
@@ -122,7 +128,8 @@ function FBD({ scene, labels }: { scene: string; labels: string[] }) {
         <text x={bx - 78} y={by - 48} fontSize="10" fill={TEAL} fontWeight="bold">{labels[1] ?? "F_N"}</text>
         <Arrow x1={bx} y1={by} x2={bx - 52} y2={by - 34} color={GOLD} />
         <text x={bx - 96} y={by - 22} fontSize="10" fill={GOLD} fontWeight="bold">{labels[2] ?? "f"}</text>
-        <text x={252} y={158} fontSize="11" fill={INK} fontWeight="bold">θ</text>
+        <text x={252} y={158} fontSize="11" fill={INK} fontWeight="bold">θ (incline angle)</text>
+        <text x={bx} y={by + 5} textAnchor="middle" fontSize="10" fill="#fff" fontWeight="bold">object</text>
       </Frame>
     );
   }
@@ -173,6 +180,7 @@ function Circuit({ layout, labels }: { layout: string; labels: string[] }) {
   if (layout === "series2") {
     return (
       <Frame w={w} h={h}>
+        <text x={170} y={12} textAnchor="middle" fontSize="10" fill={INK} fontWeight="bold">Figure 1. Circuit schematic</text>
         {batt}
         <line x1={100} y1={30} x2={100} y2={150} stroke={INK} strokeWidth="2" />
         <line x1={250} y1={30} x2={250} y2={150} stroke={INK} strokeWidth="2" />
@@ -189,6 +197,7 @@ function Circuit({ layout, labels }: { layout: string; labels: string[] }) {
   if (layout === "parallel2") {
     return (
       <Frame w={w} h={h}>
+        <text x={170} y={12} textAnchor="middle" fontSize="10" fill={INK} fontWeight="bold">Figure 1. Circuit schematic</text>
         {batt}
         <line x1={100} y1={30} x2={100} y2={160} stroke={INK} strokeWidth="2" />
         <line x1={250} y1={30} x2={250} y2={160} stroke={INK} strokeWidth="2" />
@@ -206,6 +215,7 @@ function Circuit({ layout, labels }: { layout: string; labels: string[] }) {
   if (layout === "rcMeter") {
     return (
       <Frame w={w} h={h}>
+        <text x={170} y={12} textAnchor="middle" fontSize="10" fill={INK} fontWeight="bold">Figure 1. Circuit schematic</text>
         {batt}
         <line x1={100} y1={30} x2={100} y2={150} stroke={INK} strokeWidth="2" />
         <line x1={250} y1={30} x2={250} y2={90} stroke={INK} strokeWidth="2" />
@@ -422,8 +432,8 @@ function PvDiag({ points, labels, note }: { points: [number, number][]; labels?:
       {[0, 0.5, 1].map((f) => <g key={`y${f}`}><line x1={px - 4} y1={py + (1 - f) * gh} x2={px} y2={py + (1 - f) * gh} stroke={MUTED} /><text x={px - 7} y={py + (1 - f) * gh + 3} textAnchor="end" fontSize="8" fill={MUTED}>{(f * 4).toFixed(0)}</text></g>)}
       <text x={px + gw + 16} y={py + gh + 4} fontSize="10" fill={MUTED}>Volume (L)</text>
       <text x={px - 24} y={py - 6} fontSize="10" fill={MUTED}>Pressure (kPa)</text>
-      {points.map((pt, i) => {
-        const next = points[(i + 1) % points.length];
+      {points.slice(0, -1).map((pt, i) => {
+        const next = points[i + 1];
         return (
           <Arrow
             key={`s${i}`}
@@ -493,7 +503,7 @@ function TrackDiag({ marks, note }: { marks: number[]; note?: string }) {
 
 export function QDiagram({ spec }: { spec: DiagramSpec }) {
   switch (spec.kind) {
-    case "vgraph": return <VGraph graph={spec.graph} shape={spec.shape} note={spec.note} />;
+    case "vgraph": return <VGraph graph={spec.graph} shape={spec.shape} title={spec.title} xLabel={spec.xLabel} yLabel={spec.yLabel} note={spec.note} />;
     case "fbd": return <FBD scene={spec.scene} labels={spec.labels} />;
     case "circuit": return <Circuit layout={spec.layout ?? "series2"} labels={spec.labels ?? []} />;
     case "charges": return <Charges q={spec.q} note={spec.note} />;

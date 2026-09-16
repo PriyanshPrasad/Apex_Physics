@@ -80,19 +80,36 @@ export type Rng = () => number;
 // format. Archetypes that belong to the same set declare the same `shared`
 // key; the engine then seeds them identically per variant index, so every
 // member of the family describes the SAME scenario for a given variant.
+export type StimulusVisual =
+  | { kind: "diagram"; diagram: DiagramSpec; caption: string; purpose?: string }
+  | { kind: "table"; headers: string[]; rows: string[][]; caption: string; purpose?: string };
+
 export type StimulusSpec =
-  | { kind: "track"; marks: number[]; blurb: string; title?: string; caption?: string; note?: string }
-  | { kind: "table"; headers: string[]; rows: string[][]; blurb: string; title?: string; caption?: string; note?: string }
-  | { kind: "pv"; points: [number, number][]; blurb: string; title?: string; caption?: string; note?: string }
-  | { kind: "diagram"; diagram: DiagramSpec; blurb: string; title?: string; caption?: string };
+  | { kind: "track"; marks: number[]; blurb: string; title?: string; caption?: string; purpose?: string; note?: string }
+  | { kind: "table"; headers: string[]; rows: string[][]; blurb: string; title?: string; caption?: string; purpose?: string; note?: string }
+  | { kind: "pv"; points: [number, number][]; blurb: string; title?: string; caption?: string; purpose?: string; note?: string }
+  | { kind: "diagram"; diagram: DiagramSpec; blurb: string; title?: string; caption?: string; purpose?: string }
+  | { kind: "composite"; visuals: StimulusVisual[]; blurb: string; title: string };
+
+/** A normalized scientific-document block used by the renderer and validators. */
+export interface StimulusBlock {
+  label: string;
+  kind: "figure" | "table";
+  caption: string;
+  purpose?: string;
+}
 
 export interface StimulusRender {
   title: string;
+  scenarioLabel: "SCENARIO / CONTEXT";
   diagram?: DiagramSpec;
   table?: { headers: string[]; rows: string[][] };
   blurb: string;
   caption?: string;
+  purpose?: string;
   note?: string;
+  visuals?: StimulusVisual[];
+  block: StimulusBlock;
 }
 
 export function stimRender(s: StimulusSpec): StimulusRender {
@@ -101,13 +118,15 @@ export function stimRender(s: StimulusSpec): StimulusRender {
     table: "Experimental data",
     pv: "Thermodynamic process",
     diagram: "Physical system",
+    composite: "Multi-representation investigation",
   } as const;
   const title = s.title ?? defaults[s.kind];
   switch (s.kind) {
-    case "track": return { title, diagram: { kind: "track", marks: s.marks, note: s.note }, blurb: s.blurb, caption: s.caption ?? "Figure 1. Measurement track and marked positions.", note: s.note };
-    case "table": return { title, table: { headers: s.headers, rows: s.rows }, blurb: s.blurb, caption: s.caption ?? "Table 1. Measured values for the investigation.", note: s.note };
-    case "pv": return { title, diagram: { kind: "pv", points: s.points, note: s.note }, blurb: s.blurb, caption: s.caption ?? "Figure 1. Pressure–volume path for the system.", note: s.note };
-    case "diagram": return { title, diagram: s.diagram, blurb: s.blurb, caption: s.caption ?? "Figure 1. Diagram of the physical system." };
+    case "track": return { title, scenarioLabel: "SCENARIO / CONTEXT", diagram: { kind: "track", marks: s.marks, note: s.note }, blurb: s.blurb, caption: s.caption ?? "Figure 1. Measurement track and marked positions.", purpose: s.purpose, block: { label: "FIGURE 1", kind: "figure", caption: s.caption ?? "Figure 1. Measurement track and marked positions.", purpose: s.purpose }, note: s.note };
+    case "table": return { title, scenarioLabel: "SCENARIO / CONTEXT", table: { headers: s.headers, rows: s.rows }, blurb: s.blurb, caption: s.caption ?? "Table 1. Measured values for the investigation.", purpose: s.purpose, block: { label: "TABLE 1", kind: "table", caption: s.caption ?? "Table 1. Measured values for the investigation.", purpose: s.purpose }, note: s.note };
+    case "pv": return { title, scenarioLabel: "SCENARIO / CONTEXT", diagram: { kind: "pv", points: s.points, note: s.note }, blurb: s.blurb, caption: s.caption ?? "Figure 1. Pressure–volume path for the system.", purpose: s.purpose, block: { label: "FIGURE 1", kind: "figure", caption: s.caption ?? "Figure 1. Pressure–volume path for the system.", purpose: s.purpose }, note: s.note };
+    case "diagram": return { title, scenarioLabel: "SCENARIO / CONTEXT", diagram: s.diagram, blurb: s.blurb, caption: s.caption ?? "Figure 1. Diagram of the physical system.", purpose: s.purpose, block: { label: "FIGURE 1", kind: "figure", caption: s.caption ?? "Figure 1. Diagram of the physical system.", purpose: s.purpose } };
+    case "composite": return { title, scenarioLabel: "SCENARIO / CONTEXT", blurb: s.blurb, visuals: s.visuals, caption: s.visuals[0]?.caption, block: { label: "FIGURES AND TABLES", kind: "figure", caption: "Multiple related representations of the same physical system." } };
   }
 }
 
