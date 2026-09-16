@@ -121,10 +121,18 @@ function validateRaw(archId: string, raw: RawQ): string | null {
     if (typeof raw.tempt[raw.correct] !== "undefined") return "tempt set for the CORRECT choice";
     if (raw.tempt.some((t, i) => i !== raw.correct && (typeof t !== "string" || t.trim().length < 8))) return "each distractor needs a misconception explanation";
   }
-  if (raw.stimulus) {
-    if (raw.stimulus.blurb.trim().length < 20) return "stimulus blurb missing/too short";
-    if (raw.stimulus.kind === "table" && (raw.stimulus.headers.length < 2 || raw.stimulus.rows.length < 2)) return "stimulus table needs headers and data rows";
-    if (raw.stimulus.kind === "pv" && raw.stimulus.points.length < 2) return "P–V stimulus needs at least two points";
+  const stimulus = raw.stimulus;
+  if (stimulus) {
+    if (stimulus.blurb.trim().length < 20) return "stimulus blurb missing/too short";
+    if (stimulus.title !== undefined && stimulus.title.trim().length < 5) return "stimulus title missing/too short";
+    if (stimulus.caption !== undefined && stimulus.caption.trim().length < 12) return "stimulus caption missing/too short";
+    if (stimulus.kind === "table") {
+      const { headers, rows } = stimulus;
+      if (headers.length < 2 || rows.length < 2) return "stimulus table needs headers and data rows";
+      if (headers.some((header) => !header.trim() || /^(x|y|value|data)$/i.test(header.trim()))) return "stimulus table needs physical column labels";
+      if (rows.some((row) => row.length !== headers.length || row.some((cell) => !cell.trim()))) return "stimulus table has malformed rows";
+    }
+    if (stimulus.kind === "pv" && stimulus.points.length < 2) return "P–V stimulus needs at least two points";
   }
   return null;
 }

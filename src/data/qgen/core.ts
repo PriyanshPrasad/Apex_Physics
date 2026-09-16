@@ -81,24 +81,33 @@ export type Rng = () => number;
 // key; the engine then seeds them identically per variant index, so every
 // member of the family describes the SAME scenario for a given variant.
 export type StimulusSpec =
-  | { kind: "track"; marks: number[]; blurb: string; note?: string }
-  | { kind: "table"; headers: string[]; rows: string[][]; blurb: string; note?: string }
-  | { kind: "pv"; points: [number, number][]; blurb: string; note?: string }
-  | { kind: "diagram"; diagram: DiagramSpec; blurb: string };
+  | { kind: "track"; marks: number[]; blurb: string; title?: string; caption?: string; note?: string }
+  | { kind: "table"; headers: string[]; rows: string[][]; blurb: string; title?: string; caption?: string; note?: string }
+  | { kind: "pv"; points: [number, number][]; blurb: string; title?: string; caption?: string; note?: string }
+  | { kind: "diagram"; diagram: DiagramSpec; blurb: string; title?: string; caption?: string };
 
 export interface StimulusRender {
+  title: string;
   diagram?: DiagramSpec;
   table?: { headers: string[]; rows: string[][] };
   blurb: string;
+  caption?: string;
   note?: string;
 }
 
 export function stimRender(s: StimulusSpec): StimulusRender {
+  const defaults = {
+    track: "Motion investigation",
+    table: "Experimental data",
+    pv: "Thermodynamic process",
+    diagram: "Physical system",
+  } as const;
+  const title = s.title ?? defaults[s.kind];
   switch (s.kind) {
-    case "track": return { diagram: { kind: "track", marks: s.marks, note: s.note }, blurb: s.blurb, note: s.note };
-    case "table": return { table: { headers: s.headers, rows: s.rows }, blurb: s.blurb, note: s.note };
-    case "pv": return { diagram: { kind: "pv", points: s.points, note: s.note }, blurb: s.blurb, note: s.note };
-    case "diagram": return { diagram: s.diagram, blurb: s.blurb };
+    case "track": return { title, diagram: { kind: "track", marks: s.marks, note: s.note }, blurb: s.blurb, caption: s.caption ?? "Figure 1. Measurement track and marked positions.", note: s.note };
+    case "table": return { title, table: { headers: s.headers, rows: s.rows }, blurb: s.blurb, caption: s.caption ?? "Table 1. Measured values for the investigation.", note: s.note };
+    case "pv": return { title, diagram: { kind: "pv", points: s.points, note: s.note }, blurb: s.blurb, caption: s.caption ?? "Figure 1. Pressure–volume path for the system.", note: s.note };
+    case "diagram": return { title, diagram: s.diagram, blurb: s.blurb, caption: s.caption ?? "Figure 1. Diagram of the physical system." };
   }
 }
 

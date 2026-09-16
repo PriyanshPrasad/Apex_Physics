@@ -60,6 +60,8 @@ function GraphPath(shape: string, graph: string): [number, number][] {
       case "parabolic-down": v = 0.92 - 0.84 * u * u; break;
       case "sine-up": v = 0.5 - 0.42 * Math.cos(u * Math.PI * 1.2); break;
       case "sine-down": v = 0.5 + 0.42 * Math.cos(u * Math.PI * 1.2); break;
+      case "exp-up": v = 0.08 + 0.84 * (1 - Math.exp(-4 * u)); break;
+      case "exp-down": v = 0.92 * Math.exp(-4 * u); break;
       case "cosine": v = 0.5 + 0.42 * Math.cos(u * Math.PI * 2); break;
       case "well": v = 0.12 + 0.76 * (2 * u - 1) * (2 * u - 1); break;
       case "double-well": v = 0.15 + 0.7 * Math.abs(Math.cos(u * Math.PI * 2)); break;
@@ -82,14 +84,21 @@ function VGraph({ graph, shape, note }: { graph: string; shape: string; note?: s
     <Frame w={w} h={h}>
       <rect x={px} y={py} width={gw} height={gh} fill="none" stroke={MUTED} strokeWidth="1" opacity="0.5" />
       {[0.25, 0.5, 0.75].map((f) => (
-        <line key={f} x1={px} y1={py + gh * f} x2={px + gw} y2={py + gh * f} stroke={MUTED} strokeWidth="0.6" opacity="0.25" />
+        <g key={f}>
+          <line x1={px} y1={py + gh * f} x2={px + gw} y2={py + gh * f} stroke={MUTED} strokeWidth="0.6" opacity="0.25" />
+          <text x={px - 6} y={py + gh * f + 3} textAnchor="end" fontSize="8" fill={MUTED}>{graph === "vt" ? Math.round((1 - f) * 20) : graph === "at" ? Math.round((1 - f) * 10) : graph === "ut" ? Math.round((1 - f) * 100) : Math.round((1 - f) * 10)}</text>
+        </g>
       ))}
+      {[0, 1, 2, 3, 4].map((tick) => {
+        const x = px + (tick / 4) * gw;
+        return <g key={tick}><line x1={x} y1={py + gh} x2={x} y2={py + gh + 4} stroke={MUTED} /><text x={x} y={py + gh + 15} textAnchor="middle" fontSize="8" fill={MUTED}>{tick}</text></g>;
+      })}
       <polyline
         points={pts.map(([u, v]) => `${px + u * gw},${py + v * gh}`).join(" ")}
         fill="none" stroke={VIOLET} strokeWidth="2.5"
       />
       <text x={px + gw} y={py - 8} textAnchor="end" fontSize="10" fill={MUTED}>{label}</text>
-      <text x={px + gw / 2} y={h - 8} textAnchor="middle" fontSize="10" fill={MUTED}>{xlabel}</text>
+      <text x={px + gw / 2} y={h - 2} textAnchor="middle" fontSize="10" fill={MUTED}>{xlabel}</text>
       <text x={px - 6} y={py + 8} textAnchor="end" fontSize="9" fill={MUTED}>+</text>
       <text x={px - 6} y={py + gh} textAnchor="end" fontSize="9" fill={MUTED}>0</text>
       {note && <text x={w - 8} y={py + 12} textAnchor="end" fontSize="10" fill={GOLD} fontWeight="bold">{note}</text>}
@@ -409,8 +418,10 @@ function PvDiag({ points, labels, note }: { points: [number, number][]; labels?:
     <Frame w={w} h={h}>
       <line x1={px} y1={py + gh} x2={px + gw + 14} y2={py + gh} stroke={MUTED} strokeWidth="1.2" />
       <line x1={px} y1={py + gh} x2={px} y2={py - 10} stroke={MUTED} strokeWidth="1.2" />
-      <text x={px + gw + 16} y={py + gh + 4} fontSize="10" fill={MUTED}>V</text>
-      <text x={px - 24} y={py - 6} fontSize="10" fill={MUTED}>P</text>
+      {[0, 0.5, 1].map((f) => <g key={`x${f}`}><line x1={px + f * gw} y1={py + gh} x2={px + f * gw} y2={py + gh + 4} stroke={MUTED} /><text x={px + f * gw} y={py + gh + 16} textAnchor="middle" fontSize="8" fill={MUTED}>{(f * 4).toFixed(0)}</text></g>)}
+      {[0, 0.5, 1].map((f) => <g key={`y${f}`}><line x1={px - 4} y1={py + (1 - f) * gh} x2={px} y2={py + (1 - f) * gh} stroke={MUTED} /><text x={px - 7} y={py + (1 - f) * gh + 3} textAnchor="end" fontSize="8" fill={MUTED}>{(f * 4).toFixed(0)}</text></g>)}
+      <text x={px + gw + 16} y={py + gh + 4} fontSize="10" fill={MUTED}>Volume (L)</text>
+      <text x={px - 24} y={py - 6} fontSize="10" fill={MUTED}>Pressure (kPa)</text>
       {points.map((pt, i) => {
         const next = points[(i + 1) % points.length];
         return (
@@ -474,7 +485,7 @@ function TrackDiag({ marks, note }: { marks: number[]; note?: string }) {
       <rect x={cartX - 17} y={y - 30} width={34} height={19} rx={5} fill={VIOLET} opacity="0.92" />
       <circle cx={cartX - 9} cy={y - 9} r={3} fill={INK} />
       <circle cx={cartX + 9} cy={y - 9} r={3} fill={INK} />
-      <text x={170} y={44} textAnchor="middle" fontSize="10" fill={VIOLET} fontWeight="bold">cart (motion along track)</text>
+      <text x={170} y={44} textAnchor="middle" fontSize="10" fill={VIOLET} fontWeight="bold">Figure 1. Cart on a one-dimensional track</text>
       {note && <text x={170} y={172} textAnchor="middle" fontSize="10" fill={GOLD} fontWeight="bold">{note}</text>}
     </Frame>
   );

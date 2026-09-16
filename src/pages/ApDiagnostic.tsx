@@ -41,15 +41,16 @@ function LiveQuestion({ q, onDone }: { q: QEntry; onDone: (correct: boolean) => 
       {q.stimulusRender && (
         <div className="clay-inset mb-4 p-4">
           <p className="text-xs font-extrabold uppercase tracking-wide text-muted-foreground">Stimulus</p>
+          <h3 className="mt-1 text-lg font-extrabold">{q.stimulusRender.title}</h3>
           <p className="mt-2 whitespace-pre-line text-sm leading-6">{q.stimulusRender.blurb}</p>
-          {q.stimulusRender.diagram && <button type="button" onClick={() => setShowVisualZoom((value) => !value)} aria-label="Expand stimulus visual" className="clay-sm mt-3 block w-full cursor-zoom-in overflow-hidden p-2 text-left"><div className={cn("mx-auto transition-all", showVisualZoom ? "max-w-3xl" : "max-w-xl")}><QDiagram spec={q.stimulusRender.diagram} /></div></button>}
+          {q.stimulusRender.diagram && <figure className="mt-3"><button type="button" onClick={() => setShowVisualZoom((value) => !value)} aria-label="Expand stimulus visual" className="clay-sm block w-full cursor-zoom-in overflow-hidden p-2 text-left"><div className={cn("mx-auto transition-all", showVisualZoom ? "max-w-3xl" : "max-w-xl")}><QDiagram spec={q.stimulusRender.diagram} /></div></button><figcaption className="mt-1 text-center text-xs text-muted-foreground">{q.stimulusRender.caption}</figcaption></figure>}
           {q.stimulusRender.table && (
-            <div className="mt-3 overflow-x-auto">
+            <figure className="mt-3 overflow-x-auto"><figcaption className="mb-1 text-xs font-semibold text-muted-foreground">{q.stimulusRender.caption}</figcaption>
               <table className="w-full min-w-[320px] text-left text-xs">
                 <thead><tr>{q.stimulusRender.table.headers.map((h) => <th key={h} className="border-b border-border/60 px-2 py-2 font-extrabold">{h}</th>)}</tr></thead>
                 <tbody>{q.stimulusRender.table.rows.map((row, i) => <tr key={i}>{row.map((cell, j) => <td key={j} className="border-b border-border/40 px-2 py-2">{cell}</td>)}</tr>)}</tbody>
               </table>
-            </div>
+            </figure>
           )}
         </div>
       )}
