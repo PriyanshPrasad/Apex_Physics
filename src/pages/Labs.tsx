@@ -1,537 +1,149 @@
-// Virtual labs: each lab runs a REAL model. Collect data yourself, graph it,
-// fit a line, and extract physics from the slope. Data persists on this device.
 import { useMemo, useState } from "react";
-import { FlaskConical, Play, Plus, Trash2, Download, LineChart } from "lucide-react";
+import { Download, FlaskConical, Play, RotateCcw, Shuffle, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { M } from "@/components/math/Math";
+import { COURSE_MAP, COURSES, type CourseId } from "@/data/curriculum";
 import { progress, useProgress } from "@/lib/progress";
 import { cn } from "@/lib/utils";
 
-// ---------------- shared lab plumbing ----------------
-type LabId = "pendulum" | "spring" | "projectile" | "rc" | "gas";
+type ModelKind = "motion" | "force" | "energy" | "collision" | "rotation" | "oscillation" | "fluid" | "gas" | "field" | "potential" | "circuit" | "rc" | "magnetic" | "optics" | "wave" | "modern" | "calculus" | "induction";
+type LabMode = "guided" | "explore" | "challenge" | "practical";
+interface Control { key: string; label: string; unit: string; min: number; max: number; step: number; default: number }
+interface Trial { id: number; values: Record<string, number>; x: number; y: number; measured: number; expected: number; at: number }
+interface LabSpec { id: string; title: string; course: CourseId; unit: number; topic: string; model: ModelKind; difficulty: 1 | 2 | 3 | 4 | 5; minutes: number; question: string; skills: string[]; controls: Control[]; xLabel: string; yLabel: string; equation: string; prompt: string; hints: string[] }
+interface Result { x: number; y: number; expected: number; readout: Record<string, string>; visual: string }
 
-interface LabSpec {
-  id: LabId;
-  title: string;
-  question: string;
-  iv: string;
-  dv: string;
-  controls: string;
-  method: string[];
-  analysis: string;
-  claim: string;
-}
+const C = (key: string, label: string, unit: string, min: number, max: number, step: number, defaultValue: number): Control => ({ key, label, unit, min, max, step, default: defaultValue });
 
+// The catalog is deliberately data-driven: every card uses the same experiment
+// workflow, while the pure model below supplies course-appropriate physics.
 const LABS: LabSpec[] = [
-  {
-    id: "pendulum",
-    title: "Determine g with a pendulum",
-    question: "How does pendulum period depend on length, and what value of g follows?",
-    iv: "Length L (cm)",
-    dv: "Period T (s)",
-    controls: "Amplitude (keep < 15°)",
-    method: [
-      "Set an amplitude under 15° — the small-angle approximation must hold.",
-      "For each length, the stopwatch times 10 full swings; T is shown after each release.",
-      "Record at least 5 lengths spread from 30 to 150 cm.",
-    ],
-    analysis: "Plot T² vs L. The slope equals 4π²/g, so g = 4π²/slope. Check your value against 9.8 m/s².",
-    claim: "State your measured g with uncertainty. Where does the discrepancy come from? (Reaction time, amplitude too large, string mass.)",
-  },
-  {
-    id: "spring",
-    title: "Spring constant & SHM period",
-    question: "How does the oscillation period depend on mass and spring constant?",
-    iv: "Mass m (kg)",
-    dv: "Period T (s)",
-    controls: "Spring constant k (N/m)",
-    method: [
-      "Fix k. Set a mass, release from any amplitude (period is amplitude-independent!), and record T.",
-      "Change the mass and repeat — collect at least 5 (m, T) pairs.",
-      "Then change k and collect a second series if time allows.",
-    ],
-    analysis: "Plot T² vs m: the slope equals 4π²/k, so k = 4π²/slope. Compare with the spring's stated value.",
-    claim: "Does doubling m double T? Use your data. What does the intercept tell you?",
-  },
-  {
-    id: "projectile",
-    title: "Projectile range vs angle",
-    question: "Which launch angle maximizes range, and why?",
-    iv: "Launch angle θ (°)",
-    dv: "Range (m)",
-    controls: "Launch speed v₀, height h₀",
-    method: [
-      "Fix v₀ and h₀. Fire at 15°, then 30°, 45°, 60°, 75° and record each range.",
-      "Try to bracket the maximum: probe angles on both sides of your best guess.",
-      "Repeat one angle twice to gauge your measurement spread.",
-    ],
-    analysis: "Range peaks at 45° for level ground (R = v₀²sin2θ/g). With h₀ > 0 the optimum drops below 45° — check your data.",
-    claim: "Support the claim that complementary angles (30°/60°) tie on level ground. What does raising h₀ do to that symmetry?",
-  },
-  {
-    id: "rc",
-    title: "Measure an RC time constant",
-    question: "How does the capacitor charging time constant respond to resistance?",
-    iv: "Resistance R (kΩ)",
-    dv: "Time constant τ (s)",
-    controls: "Capacitance C, EMF",
-    method: [
-      "Fix C; set R and press Charge. Watch the charge graph climb.",
-      "Record the time when the trace crosses the 63% guideline.",
-      "Reset, change R, repeat for at least 5 values.",
-    ],
-    analysis: "Plot τ vs R. The slope should equal C (τ = RC). Compare your slope to the capacitor's stated value.",
-    claim: "Claim: τ = RC. Does your data support it within reading uncertainty? What limits your timing precision?",
-  },
-  {
-    id: "gas",
-    title: "Verify the ideal gas law",
-    question: "How do pressure and volume trade off at fixed temperature?",
-    iv: "Volume (m³ ×10⁻³)",
-    dv: "Pressure (kPa)",
-    controls: "Temperature (hold constant), particle count",
-    method: [
-      "Fix temperature and N. Step the volume through at least 6 values.",
-      "At each volume, let the pressure readout settle for a few seconds, then collect.",
-      "Change N or T and collect a second series if time allows.",
-    ],
-    analysis: "Compute P·V for each row — it should be constant at fixed T and N. Plot P vs 1/V for a straight line through the origin.",
-    claim: "Claim: P·V = constant at fixed T, N. Support or refute with your spread of P·V values.",
-  },
+  { id: "p1-motion", title: "Motion tracker: position, velocity, acceleration", course: "p1", unit: 1, topic: "Kinematics", model: "motion", difficulty: 2, minutes: 20, question: "How do initial velocity and acceleration determine a cart's motion?", skills: ["Graphing", "Modeling", "Data analysis"], controls: [C("time", "Measurement time", "s", 1, 8, 0.5, 3), C("x0", "Initial position", "m", 0, 10, 0.5, 1), C("v0", "Initial velocity", "m/s", -8, 12, 0.5, 3), C("a", "Acceleration", "m/s²", -6, 6, 0.5, 1)], xLabel: "Time (s)", yLabel: "Position (m)", equation: "x = x₀ + v₀t + ½at²", prompt: "Predict the sign of the slope of the position-time graph and explain how changing acceleration will change its curvature.", hints: ["The slope of x(t) is velocity.", "Acceleration changes the slope of the velocity graph.", "Use x = x₀ + v₀t + ½at² before collecting data."] },
+  { id: "p1-projectile", title: "Projectile range and launch angle", course: "p1", unit: 1, topic: "Kinematics", model: "motion", difficulty: 2, minutes: 20, question: "Which launch angle produces the greatest range from a platform?", skills: ["Prediction", "Graphing", "Vectors"], controls: [C("angle", "Launch angle", "°", 10, 80, 5, 45), C("v0", "Launch speed", "m/s", 8, 40, 1, 24), C("height", "Launch height", "m", 0, 20, 1, 2), C("g", "Gravity", "m/s²", 1, 15, 0.1, 9.8)], xLabel: "Launch angle (°)", yLabel: "Range (m)", equation: "R = v₀ cosθ · [v₀ sinθ + √((v₀sinθ)² + 2gh)]/g", prompt: "Compare complementary angles and explain why a launch height changes the angle of maximum range.", hints: ["Resolve the velocity into horizontal and vertical components.", "The flight time is set by vertical motion.", "Range equals horizontal speed multiplied by flight time."] },
+  { id: "p1-newton", title: "Newton's second law cart investigation", course: "p1", unit: 2, topic: "Forces and Translational Dynamics", model: "force", difficulty: 2, minutes: 25, question: "How does net force affect the acceleration of a cart?", skills: ["Experimental design", "FBDs", "Linear fit"], controls: [C("mass", "Cart mass", "kg", 0.5, 8, 0.5, 2), C("force", "Applied force", "N", 0, 40, 1, 12), C("mu", "Kinetic friction", "", 0, 0.5, 0.01, 0.1), C("g", "Gravity", "m/s²", 5, 15, 0.1, 9.8)], xLabel: "Net force (N)", yLabel: "Acceleration (m/s²)", equation: "a = (F − μₖmg)/m", prompt: "Hold mass constant and collect force-acceleration data. What does the slope represent?", hints: ["Subtract friction from the applied force.", "Plot acceleration vertically and net force horizontally.", "Compare the fitted slope with 1/m."] },
+  { id: "p1-friction", title: "Static and kinetic friction", course: "p1", unit: 2, topic: "Friction", model: "force", difficulty: 3, minutes: 25, question: "How do surface coefficients determine when a block begins to slide?", skills: ["Model selection", "Data analysis", "Error analysis"], controls: [C("mass", "Block mass", "kg", 0.5, 6, 0.5, 2), C("force", "Applied force", "N", 0, 30, 1, 8), C("mu", "Kinetic coefficient", "", 0, 0.6, 0.01, 0.2), C("angle", "Incline angle", "°", 0, 40, 1, 10)], xLabel: "Applied force (N)", yLabel: "Acceleration (m/s²)", equation: "fₖ = μₖN; fₛ ≤ μₛN", prompt: "Identify the threshold between static and kinetic behavior and explain which measurement would reduce uncertainty.", hints: ["Static friction adjusts until its maximum.", "Kinetic friction acts after the surfaces slide.", "Repeat the threshold measurement from both directions."] },
+  { id: "p1-energy", title: "Work-energy and energy bar chart", course: "p1", unit: 3, topic: "Work, Energy, and Power", model: "energy", difficulty: 2, minutes: 20, question: "How does applied work become kinetic, potential, or thermal energy?", skills: ["Conservation", "Energy diagrams", "Prediction"], controls: [C("mass", "Mass", "kg", 0.5, 8, 0.5, 2), C("force", "Applied force", "N", 0, 40, 1, 15), C("distance", "Displacement", "m", 0.5, 10, 0.5, 4), C("friction", "Friction force", "N", 0, 10, 0.5, 2)], xLabel: "Displacement (m)", yLabel: "Kinetic energy (J)", equation: "W_net = ΔK = (F − f)d", prompt: "Use the energy bars and measured speed to decide whether mechanical energy is conserved.", hints: ["Work is force along displacement.", "Friction transfers mechanical energy to thermal energy.", "Compare W_net with the change in kinetic energy."] },
+  { id: "p1-collision", title: "Collision momentum and kinetic energy", course: "p1", unit: 4, topic: "Linear Momentum", model: "collision", difficulty: 3, minutes: 25, question: "Which quantities are conserved in elastic and inelastic collisions?", skills: ["Conservation", "Uncertainty", "Vectors"], controls: [C("m1", "Cart A mass", "kg", 0.5, 5, 0.5, 2), C("m2", "Cart B mass", "kg", 0.5, 5, 0.5, 1), C("v1", "Cart A velocity", "m/s", -8, 8, 0.5, 4), C("v2", "Cart B velocity", "m/s", -8, 8, 0.5, 0), C("restitution", "Restitution", "", 0, 1, 0.05, 0.6)], xLabel: "Trial", yLabel: "Total momentum (kg·m/s)", equation: "pᵢ = p_f; K is conserved only when e = 1", prompt: "Compare the before/after momentum and kinetic-energy readouts. Explain the role of restitution.", hints: ["Momentum uses signed velocities.", "Restitution controls relative separation speed.", "Energy can transfer to sound, heat, and deformation."] },
+  { id: "p1-rotation", title: "Torque and rotational dynamics", course: "p1", unit: 5, topic: "Torque and Rotational Dynamics", model: "rotation", difficulty: 3, minutes: 25, question: "How do force, lever arm, and rotational inertia determine angular acceleration?", skills: ["Torque diagrams", "Modeling", "Graphing"], controls: [C("force", "Applied force", "N", 0, 40, 1, 12), C("radius", "Lever arm", "m", 0.1, 2, 0.1, 0.8), C("angle", "Force angle", "°", 0, 90, 5, 90), C("inertia", "Moment of inertia", "kg·m²", 0.2, 8, 0.2, 2)], xLabel: "Torque (N·m)", yLabel: "Angular acceleration (rad/s²)", equation: "τ = rF sinθ; α = τ/I", prompt: "Determine whether doubling the lever arm has the same effect as doubling the force.", hints: ["Only the perpendicular force component contributes.", "Torque is the product rFsinθ.", "For fixed I, α is proportional to torque."] },
+  { id: "p1-oscillation", title: "Spring-mass oscillation", course: "p1", unit: 7, topic: "Oscillations", model: "oscillation", difficulty: 2, minutes: 25, question: "How do mass, spring constant, and damping affect the period and energy?", skills: ["Graphing", "Proportional reasoning", "Energy"], controls: [C("mass", "Mass", "kg", 0.2, 5, 0.1, 1), C("k", "Spring constant", "N/m", 5, 200, 5, 50), C("amplitude", "Amplitude", "m", 0.02, 0.5, 0.01, 0.2), C("damping", "Damping", "", 0, 0.5, 0.01, 0.05)], xLabel: "Mass (kg)", yLabel: "Period (s)", equation: "T = 2π√(m/k)", prompt: "Use several masses to test whether T² is proportional to mass. Explain the effect of damping separately.", hints: ["The ideal period is independent of amplitude.", "Square the measured period before fitting.", "Damping changes amplitude more directly than the ideal period."] },
+  { id: "p1-fluids", title: "Pressure, buoyancy, and fluid density", course: "p1", unit: 8, topic: "Fluids", model: "fluid", difficulty: 3, minutes: 25, question: "How do depth, density, and displaced volume affect pressure and buoyant force?", skills: ["Data analysis", "Proportional reasoning", "Models"], controls: [C("density", "Fluid density", "kg/m³", 500, 1400, 25, 1000), C("depth", "Depth", "m", 0, 10, 0.5, 3), C("volume", "Object volume", "m³", 0.001, 0.08, 0.001, 0.02), C("g", "Gravity", "m/s²", 5, 15, 0.1, 9.8)], xLabel: "Depth (m)", yLabel: "Pressure (kPa)", equation: "P = P₀ + ρgh; F_B = ρgV", prompt: "Use pressure and buoyant-force measurements to distinguish depth effects from density effects.", hints: ["Pressure increases linearly with depth.", "Buoyant force depends on displaced volume and density.", "Keep volume fixed when testing density."] },
+  { id: "p2-gas", title: "Ideal gas: pressure, volume, and temperature", course: "p2", unit: 9, topic: "Thermodynamics", model: "gas", difficulty: 2, minutes: 25, question: "Which variables must be held constant to test each ideal-gas relationship?", skills: ["Particle model", "Graphing", "Experimental design"], controls: [C("temp", "Temperature", "K", 150, 600, 5, 300), C("volume", "Volume", "L", 0.5, 5, 0.1, 2), C("particles", "Particle amount", "arb. units", 20, 120, 1, 60)], xLabel: "1/Volume (L⁻¹)", yLabel: "Pressure (kPa)", equation: "PV = Nk_BT", prompt: "Change one state variable at a time and use P·V/T to test the ideal-gas model.", hints: ["Pressure rises when particles move faster or have less room.", "At fixed T and N, P is proportional to 1/V.", "Use ratios to avoid an arbitrary calibration constant."] },
+  { id: "p2-fields", title: "Point-charge electric-field mapping", course: "p2", unit: 10, topic: "Electric Fields", model: "field", difficulty: 3, minutes: 25, question: "How do charge magnitude, sign, and distance affect electric field?", skills: ["Vector fields", "Representations", "Data analysis"], controls: [C("charge", "Source charge", "μC", -10, 10, 0.5, 4), C("distance", "Probe distance", "m", 0.1, 5, 0.1, 1), C("test", "Test charge", "μC", -5, 5, 0.5, 1)], xLabel: "1/r² (m⁻²)", yLabel: "Field magnitude (N/C)", equation: "E = k|q|/r²", prompt: "Map the field at several distances and explain how the sign changes direction but not magnitude.", hints: ["Field magnitude depends on |q| and inverse square distance.", "A positive test charge moves in the field direction.", "Plot E against 1/r² for a straight line."] },
+  { id: "p2-potential", title: "Equipotential and electric potential mapping", course: "p2", unit: 10, topic: "Electric Potential", model: "potential", difficulty: 3, minutes: 25, question: "How are electric potential and field related near a point charge?", skills: ["Field maps", "Graphing", "Representation translation"], controls: [C("charge", "Source charge", "μC", -10, 10, 0.5, 4), C("distance", "Distance", "m", 0.1, 5, 0.1, 1), C("test", "Test charge", "μC", -5, 5, 0.5, 1)], xLabel: "Distance (m)", yLabel: "Potential (V)", equation: "V = kq/r; E = −dV/dr", prompt: "Compare the slope of V(r) with the field magnitude and explain why equipotential motion requires no work.", hints: ["Potential is scalar and can be negative.", "The field is related to the spatial slope of potential.", "Moving along an equipotential gives ΔV = 0."] },
+  { id: "p2-circuit", title: "Circuit builder: Ohm's law and topology", course: "p2", unit: 11, topic: "Electric Circuits", model: "circuit", difficulty: 3, minutes: 30, question: "How do voltage, resistance, and series/parallel topology determine current?", skills: ["Circuit models", "Measurement", "Data analysis"], controls: [C("voltage", "Battery voltage", "V", 1, 24, 1, 12), C("resistance", "Equivalent resistance", "Ω", 1, 100, 1, 20), C("branches", "Parallel branches", "", 1, 4, 1, 1)], xLabel: "Resistance (Ω)", yLabel: "Current (A)", equation: "I = V/R; P = IV", prompt: "Measure current for several resistances and compare a series-equivalent model with a parallel-equivalent model.", hints: ["Current is charge per time.", "Series resistances add; parallel conductance adds.", "The slope of I versus 1/R is the source voltage."] },
+  { id: "p2-rc", title: "RC charging and discharging", course: "p2", unit: 11, topic: "Electric Circuits", model: "rc", difficulty: 4, minutes: 30, question: "How do resistance and capacitance set the transient response?", skills: ["Exponential models", "Graphing", "Experimental design"], controls: [C("resistance", "Resistance", "kΩ", 1, 100, 1, 10), C("capacitance", "Capacitance", "μF", 10, 500, 10, 100), C("voltage", "Battery voltage", "V", 1, 24, 1, 9)], xLabel: "Time (s)", yLabel: "Capacitor voltage (V)", equation: "V_C = V(1 − e^(−t/RC)); τ = RC", prompt: "Use the 63% crossing and a τ versus R graph to determine capacitance.", hints: ["At t = τ, a charging capacitor reaches about 63% of its final voltage.", "Double R or C and τ doubles.", "A semilog plot can linearize exponential data."] },
+  { id: "p2-magnetism", title: "Magnetic force and field around a wire", course: "p2", unit: 12, topic: "Magnetism", model: "magnetic", difficulty: 3, minutes: 25, question: "How do current, charge velocity, and field direction affect magnetic force?", skills: ["Vectors", "Field diagrams", "Right-hand rule"], controls: [C("current", "Wire current", "A", -10, 10, 0.5, 4), C("distance", "Distance", "m", 0.1, 3, 0.1, 1), C("charge", "Moving charge", "μC", 0.1, 5, 0.1, 1), C("speed", "Charge speed", "m/s", 100, 5000, 100, 1000)], xLabel: "Current (A)", yLabel: "Field magnitude (μT)", equation: "B = μ₀I/(2πr); F = qvB sinθ", prompt: "Reverse the current and predict which vector reverses before collecting a measurement.", hints: ["The field circles the wire.", "Use the right-hand rule for direction.", "Force also depends on the angle between velocity and field."] },
+  { id: "p2-optics", title: "Lens image formation and ray tracing", course: "p2", unit: 13, topic: "Geometric Optics", model: "optics", difficulty: 3, minutes: 25, question: "How do focal length and object distance determine image formation?", skills: ["Ray diagrams", "Modeling", "Prediction"], controls: [C("focal", "Focal length", "cm", 5, 50, 1, 20), C("object", "Object distance", "cm", 5, 100, 1, 40), C("height", "Object height", "cm", 1, 20, 1, 8), C("index", "Refractive index", "", 1.2, 2.2, 0.01, 1.5)], xLabel: "Object distance (cm)", yLabel: "Image distance (cm)", equation: "1/f = 1/dₒ + 1/dᵢ", prompt: "Move the object through the focal point and classify the resulting image from the rays and sign of dᵢ.", hints: ["The focal point is where dₒ = f.", "A negative image distance indicates a virtual image.", "Check magnification from m = −dᵢ/dₒ."] },
+  { id: "p2-waves", title: "Wave speed, frequency, and interference", course: "p2", unit: 14, topic: "Waves", model: "wave", difficulty: 2, minutes: 20, question: "How are wave speed, frequency, wavelength, and amplitude related?", skills: ["Graphs", "Superposition", "Prediction"], controls: [C("frequency", "Frequency", "Hz", 0.5, 20, 0.5, 4), C("amplitude", "Amplitude", "m", 0.05, 1, 0.05, 0.4), C("speed", "Wave speed", "m/s", 1, 40, 1, 12)], xLabel: "Frequency (Hz)", yLabel: "Wavelength (m)", equation: "v = fλ", prompt: "Change frequency while holding the medium fixed. Explain which quantity changes and which remains constant.", hints: ["The medium sets wave speed in this model.", "Wavelength adjusts so v = fλ remains true.", "Amplitude is not the same as energy transport speed."] },
+  { id: "p2-modern", title: "Photoelectric effect and photon energy", course: "p2", unit: 15, topic: "Modern Physics", model: "modern", difficulty: 3, minutes: 20, question: "How do wavelength, intensity, and work function affect photoelectron energy?", skills: ["Data analysis", "Models", "Graphs"], controls: [C("wavelength", "Light wavelength", "nm", 200, 900, 10, 400), C("intensity", "Relative intensity", "", 0.1, 5, 0.1, 1), C("work", "Work function", "eV", 1, 5, 0.1, 2)], xLabel: "Frequency (10¹⁴ Hz)", yLabel: "Maximum kinetic energy (eV)", equation: "K_max = hf − φ", prompt: "Use several wavelengths to find the threshold frequency and distinguish energy per photon from photon count.", hints: ["Frequency determines energy per photon.", "Intensity changes the number of photons, not each photon's energy.", "No electrons emerge when hf < φ."] },
+  { id: "cm-calculus", title: "Calculus-based motion: integrate a(t)", course: "cm", unit: 1, topic: "Calculus Kinematics", model: "calculus", difficulty: 4, minutes: 30, question: "How do numerical derivatives and integrals connect acceleration, velocity, and position?", skills: ["Numerical integration", "Graphing", "Calculus"], controls: [C("time", "Time interval", "s", 1, 10, 0.5, 4), C("a0", "Initial acceleration", "m/s²", -4, 8, 0.5, 2), C("jerk", "Acceleration slope", "m/s³", -2, 2, 0.1, 0.5), C("v0", "Initial velocity", "m/s", -5, 10, 0.5, 1)], xLabel: "Time (s)", yLabel: "Velocity (m/s)", equation: "v(t) = v₀ + ∫a(t)dt", prompt: "Compare the area under a(t) with the measured change in velocity and describe the numerical error.", hints: ["The area under acceleration is Δv.", "Use smaller time steps for a better numerical integral.", "Differentiate your fitted v(t) to recover a(t)."] },
+  { id: "cm-work", title: "Variable-force work integral", course: "cm", unit: 3, topic: "Work and Energy", model: "calculus", difficulty: 5, minutes: 30, question: "How does the area under a variable F(x) curve become work?", skills: ["Integrals", "Graphing", "Modeling"], controls: [C("force", "Force scale", "N", 1, 40, 1, 16), C("distance", "Distance", "m", 0.5, 8, 0.5, 3), C("power", "Force-law exponent", "", 1, 2, 0.1, 1.5)], xLabel: "Position (m)", yLabel: "Force (N)", equation: "W = ∫F(x)dx", prompt: "Estimate work from trapezoids and compare it with the analytical integral for the selected force law.", hints: ["Work is area, not the final force.", "Use narrow strips to approximate the integral.", "Check dimensions: N·m = J."] },
+  { id: "cm-rotation", title: "Moment of inertia from angular acceleration", course: "cm", unit: 5, topic: "Rotational Dynamics", model: "rotation", difficulty: 4, minutes: 30, question: "Can experimental τ/α recover a system's moment of inertia?", skills: ["Calculus", "Torque", "Linear fit"], controls: [C("force", "Tangential force", "N", 0, 40, 1, 12), C("radius", "Radius", "m", 0.1, 2, 0.1, 0.5), C("angle", "Force angle", "°", 0, 90, 5, 90), C("inertia", "Moment of inertia", "kg·m²", 0.2, 8, 0.2, 2)], xLabel: "Torque (N·m)", yLabel: "Angular acceleration (rad/s²)", equation: "τ = Iα", prompt: "Use the slope of α versus τ or τ versus α to determine the inertia, and state which plot is linear.", hints: ["The slope depends on which variable is vertical.", "Torque is rFsinθ.", "Use several force values rather than one measurement."] },
+  { id: "cem-field-integral", title: "Continuous charge distribution field integral", course: "cem", unit: 8, topic: "Electric Fields and Gauss's Law", model: "field", difficulty: 5, minutes: 35, question: "How does summing differential charge elements produce a field?", skills: ["Integration", "Symmetry", "Field maps"], controls: [C("charge", "Total charge", "μC", -10, 10, 0.5, 4), C("distance", "Observation distance", "m", 0.2, 5, 0.1, 1), C("segments", "Numerical segments", "", 4, 80, 4, 20)], xLabel: "1/r² (m⁻²)", yLabel: "Electric field (N/C)", equation: "E = ∫ k dq/r²", prompt: "Increase the number of charge elements and compare the numerical field with the point-charge limit.", hints: ["Each segment contributes a vector dE.", "Symmetry can cancel transverse components.", "Convergence means the result changes less as segments increase."] },
+  { id: "cem-rc", title: "Differential-equation RC laboratory", course: "cem", unit: 11, topic: "RC Circuits", model: "rc", difficulty: 5, minutes: 35, question: "How does the differential equation predict a capacitor's transient response?", skills: ["Differential equations", "Exponential fit", "Circuit analysis"], controls: [C("resistance", "Resistance", "kΩ", 1, 100, 1, 10), C("capacitance", "Capacitance", "μF", 10, 500, 10, 100), C("voltage", "Battery voltage", "V", 1, 24, 1, 9)], xLabel: "Time (s)", yLabel: "Capacitor voltage (V)", equation: "dV_C/dt = (V − V_C)/RC", prompt: "Linearize the charging curve with ln(1 − V_C/V) and use its slope to estimate RC.", hints: ["Rearrange the first-order differential equation.", "The slope of ln(1 − V_C/V) versus t is −1/RC.", "The sign must be negative for charging."] },
+  { id: "cem-induction", title: "Faraday induction and changing flux", course: "cem", unit: 13, topic: "Electromagnetic Induction", model: "induction", difficulty: 4, minutes: 30, question: "How do coil area, turns, and changing magnetic field determine induced emf?", skills: ["Flux", "Graphs", "Lenz's law"], controls: [C("turns", "Number of turns", "", 1, 200, 1, 50), C("area", "Loop area", "m²", 0.001, 0.2, 0.001, 0.02), C("fieldRate", "dB/dt", "T/s", -5, 5, 0.1, 1)], xLabel: "dB/dt (T/s)", yLabel: "Induced emf (V)", equation: "|ε| = N A |dB/dt|", prompt: "Reverse dB/dt and explain what changes in the emf sign and induced-current direction.", hints: ["Flux is BA for a perpendicular field.", "Faraday's law uses the rate of flux change.", "Lenz's law opposes the change, not the field itself."] },
+  { id: "cm-dynamics", title: "Variable acceleration and Newton's law", course: "cm", unit: 2, topic: "Calculus-Based Dynamics", model: "calculus", difficulty: 4, minutes: 30, question: "How does a time-dependent net force determine velocity and position?", skills: ["Differential equations", "Numerical integration", "Model selection"], controls: [C("time", "Time interval", "s", 1, 10, 0.5, 4), C("a0", "Initial acceleration", "m/s²", -4, 8, 0.5, 2), C("jerk", "Acceleration slope", "m/s³", -2, 2, 0.1, 0.5), C("v0", "Initial velocity", "m/s", -5, 10, 0.5, 1)], xLabel: "Time (s)", yLabel: "Velocity (m/s)", equation: "F(t) = m dv/dt", prompt: "Differentiate the measured velocity model and compare it with the acceleration implied by the force.", hints: ["F = ma is local in time.", "The derivative of v(t) is acceleration.", "Integrating acceleration recovers the change in velocity."] },
+  { id: "cm-momentum", title: "Impulse as an integral of force", course: "cm", unit: 4, topic: "Calculus-Based Momentum", model: "calculus", difficulty: 4, minutes: 30, question: "How does the area under a time-dependent force curve determine impulse?", skills: ["Integrals", "Graphing", "Momentum"], controls: [C("time", "Interaction time", "s", 1, 10, 0.5, 3), C("a0", "Initial acceleration", "m/s²", 0, 8, 0.5, 2), C("jerk", "Force-rate slope", "m/s³", -2, 2, 0.1, 0.5), C("v0", "Initial velocity", "m/s", -5, 10, 0.5, 1)], xLabel: "Time (s)", yLabel: "Velocity change (m/s)", equation: "J = ∫F(t)dt = Δp", prompt: "Use a numerical area estimate to compare impulse with the measured change in momentum.", hints: ["Impulse is the area under F(t).", "Use smaller intervals for better accuracy.", "Momentum change includes sign."] },
+  { id: "cm-oscillation", title: "Calculus-based SHM differential equation", course: "cm", unit: 7, topic: "Calculus-Based Oscillations", model: "oscillation", difficulty: 5, minutes: 35, question: "How does the solution of x'' + (k/m)x = 0 appear in measured motion?", skills: ["Differential equations", "Phase", "Energy"], controls: [C("mass", "Mass", "kg", 0.2, 5, 0.1, 1), C("k", "Spring constant", "N/m", 5, 200, 5, 50), C("amplitude", "Amplitude", "m", 0.02, 0.5, 0.01, 0.2), C("damping", "Damping", "", 0, 0.5, 0.01, 0.05)], xLabel: "Mass (kg)", yLabel: "Period (s)", equation: "x'' + (k/m)x = 0", prompt: "Compare the measured period with the angular frequency obtained from the differential equation.", hints: ["The coefficient k/m sets ω².", "The sinusoidal solution has period 2π/ω.", "Damping makes the real system depart from ideal SHM."] },
+  { id: "cem-potential", title: "Potential from a continuous field", course: "cem", unit: 9, topic: "Electric Potential", model: "potential", difficulty: 5, minutes: 35, question: "How does integrating electric field along a path determine potential difference?", skills: ["Line integrals", "Equipotentials", "Field maps"], controls: [C("charge", "Source charge", "μC", -10, 10, 0.5, 4), C("distance", "Distance", "m", 0.1, 5, 0.1, 1), C("test", "Test charge", "μC", -5, 5, 0.5, 1)], xLabel: "Distance (m)", yLabel: "Potential (V)", equation: "ΔV = −∫E·dl", prompt: "Use the slope of V(r) to infer the radial field and explain the path independence of electrostatic work.", hints: ["Potential is energy per unit charge.", "The negative slope points from high potential toward low potential.", "Electrostatic work depends only on endpoints."] },
+  { id: "cem-capacitor", title: "Capacitor geometry and stored energy", course: "cem", unit: 10, topic: "Conductors and Capacitors", model: "circuit", difficulty: 4, minutes: 30, question: "How do capacitance, voltage, and geometry affect stored charge and energy?", skills: ["Field energy", "Proportional reasoning", "Circuit models"], controls: [C("voltage", "Potential difference", "V", 1, 24, 1, 12), C("resistance", "Capacitance proxy", "μF", 1, 100, 1, 20), C("branches", "Plate configuration", "", 1, 4, 1, 1)], xLabel: "Voltage (V)", yLabel: "Stored charge (μC)", equation: "Q = CV; U = ½CV²", prompt: "Determine whether doubling voltage doubles charge and quadruples stored energy.", hints: ["Charge is linear in voltage for fixed C.", "Energy contains V².", "State which geometry variable is held fixed."] },
+  { id: "cem-magnetic", title: "Biot–Savart and Ampère field comparison", course: "cem", unit: 12, topic: "Magnetic Fields and Ampère's Law", model: "magnetic", difficulty: 5, minutes: 35, question: "How does field magnitude depend on current and distance for a long wire?", skills: ["Vector calculus", "Symmetry", "Data analysis"], controls: [C("current", "Wire current", "A", -10, 10, 0.5, 4), C("distance", "Radius", "m", 0.1, 3, 0.1, 1), C("charge", "Test charge", "μC", 0.1, 5, 0.1, 1), C("speed", "Charge speed", "m/s", 100, 5000, 100, 1000)], xLabel: "1/r (m⁻¹)", yLabel: "Magnetic field (μT)", equation: "B = μ₀I/(2πr)", prompt: "Plot B versus 1/r and use the slope to compare with the Ampère-law prediction.", hints: ["The field decreases as radius increases.", "A plot against 1/r should be linear.", "Use the right-hand rule for the sign."] },
 ];
 
-// ---------------- models ----------------
-interface Trial {
-  iv: number;
-  dv: number;
-  dv2: number; // secondary measurement for uncertainty
-}
+function defaultsFor(lab: LabSpec): Record<string, number> { return Object.fromEntries(lab.controls.map((control) => [control.key, control.default])); }
 
-interface DataState {
-  trials: Trial[];
-}
-
-const emptyData: DataState = { trials: [] };
-
-// ---- pendulum model: T = 2π√(L/g) with small-amplitude jitter as "measurement error" ----
-function usePendulumModel() {
-  const [L, setL] = useState(100); // cm
-  const T = useMemo(() => 2 * Math.PI * Math.sqrt(L / 100 / 9.8), [L]);
-  return { L, setL, T };
-}
-
-// ---- spring model ----
-function useSpringModel() {
-  const [m, setM] = useState(1);
-  const [k, setK] = useState(50);
-  const T = useMemo(() => 2 * Math.PI * Math.sqrt(m / k), [m, k]);
-  return { m, setM, k, setK, T };
-}
-
-// ---- projectile model ----
-function useProjectileModel() {
-  const [v0, setV0] = useState(25);
-  const [angle, setAngle] = useState(45);
-  const [h0, setH0] = useState(0);
-  const { range, time } = useMemo(() => {
-    const rad = (angle * Math.PI) / 180;
-    const vy = v0 * Math.sin(rad), vx = v0 * Math.cos(rad);
-    const time = (vy + Math.sqrt(vy * vy + 2 * 9.8 * h0)) / 9.8;
-    return { range: vx * time, time };
-  }, [v0, angle, h0]);
-  return { v0, setV0, angle, setAngle, h0, setH0, range, time };
-}
-
-// ---- rc model ----
-function useRcModel() {
-  const [R, setR] = useState(10); // kΩ
-  const [C, setC] = useState(100); // µF
-  const tau = useMemo(() => R * 1e3 * C * 1e-6, [R, C]);
-  return { R, setR, C, setC, tau };
-}
-
-// ---- gas model: honest P from collision counting, PV = NkT ----
-function useGasModel() {
-  const [temp, setTemp] = useState(300);
-  const [vol, setVol] = useState(1); // liters-ish
-  const [n, setN] = useState(60);
-  // At fixed N, T: P·V ∝ NT. Calibrate so P ≈ 100 kPa at V=1, T=300, N=60.
-  const P = useMemo(() => (n * temp * 5.56) / vol / 1000, [n, temp, vol]);
-  return { temp, setTemp, vol, setVol, n, setN, P };
-}
-
-// ---------------- lab components ----------------
-function LabRunner({ lab, data, onCollect }: { lab: LabSpec; data: DataState; onCollect: (t: Trial) => void }) {
-  switch (lab.id) {
-    case "pendulum": {
-      const m = usePendulumModel();
-      return (
-        <div className="space-y-3">
-          <div className="grid gap-3 sm:grid-cols-2">
-            <label className="text-xs font-bold">
-              <span className="text-muted-foreground">Length L: {m.L} cm</span>
-              <input type="range" min={30} max={150} value={m.L} onChange={(e) => m.setL(+e.target.value)} className="mt-1 h-2 w-full" />
-            </label>
-            <div className="clay-sm p-3">
-              <p className="text-[10px] font-extrabold uppercase text-muted-foreground">Stopwatch (10 swings)</p>
-              <p className="mt-1 text-sm font-extrabold">T = {m.T.toFixed(3)} s</p>
-              <p className="text-[11px] text-muted-foreground">10 swings = {(m.T * 10).toFixed(2)} s — divide by 10 yourself, like a real lab.</p>
-              <button onClick={() => onCollect({ iv: m.L, dv: m.T, dv2: m.T * 10 })} className="clay-btn clay-press mt-2 px-3 py-1.5 text-xs font-bold">
-                Collect data point
-              </button>
-            </div>
-          </div>
-          <p className="text-[11px] text-muted-foreground">L changes the model instantly — the stopwatch reads 2π√(L/g) with no hidden lag.</p>
-        </div>
-      );
+function simulate(lab: LabSpec, p: Record<string, number>): Result {
+  let readout: Record<string, string> = {};
+  let x = 0, y = 0, expected = 0, visual = lab.model;
+  const g = p.g ?? 9.8;
+  switch (lab.model) {
+    case "motion": {
+      if (lab.id.includes("projectile")) {
+        const r = p.angle * Math.PI / 180; const vy = p.v0 * Math.sin(r); const t = (vy + Math.sqrt(vy * vy + 2 * g * p.height)) / g;
+        x = p.angle; y = p.v0 * Math.cos(r) * t; expected = y; readout = { "Flight time": `${t.toFixed(2)} s`, "Range": `${y.toFixed(2)} m`, "Vertical launch speed": `${vy.toFixed(2)} m/s` };
+      } else { x = p.time; y = p.x0 + p.v0 * p.time + 0.5 * p.a * p.time * p.time; expected = y; readout = { "Position": `${y.toFixed(3)} m`, "Velocity": `${(p.v0 + p.a * p.time).toFixed(3)} m/s`, "Acceleration": `${p.a.toFixed(2)} m/s²` }; }
+      break;
     }
-    case "spring": {
-      const m = useSpringModel();
-      return (
-        <div className="space-y-3">
-          <div className="grid gap-3 sm:grid-cols-2">
-            <label className="text-xs font-bold">
-              <span className="text-muted-foreground">Mass: {m.m.toFixed(1)} kg</span>
-              <input type="range" min={0.2} max={3} step={0.1} value={m.m} onChange={(e) => m.setM(+e.target.value)} className="mt-1 h-2 w-full" />
-            </label>
-            <label className="text-xs font-bold">
-              <span className="text-muted-foreground">Spring constant k: {m.k} N/m</span>
-              <input type="range" min={10} max={200} value={m.k} onChange={(e) => m.setK(+e.target.value)} className="mt-1 h-2 w-full" />
-            </label>
-          </div>
-          <div className="clay-sm p-3">
-            <p className="text-[10px] font-extrabold uppercase text-muted-foreground">Measured period</p>
-            <p className="mt-1 text-sm font-extrabold">T = {m.T.toFixed(3)} s</p>
-            <button onClick={() => onCollect({ iv: m.m, dv: m.T, dv2: m.k })} className="clay-btn clay-press mt-2 px-3 py-1.5 text-xs font-bold">
-              Collect data point
-            </button>
-          </div>
-        </div>
-      );
-    }
-    case "projectile": {
-      const m = useProjectileModel();
-      return (
-        <div className="space-y-3">
-          <div className="grid gap-3 sm:grid-cols-3">
-            <label className="text-xs font-bold">
-              <span className="text-muted-foreground">v₀: {m.v0} m/s</span>
-              <input type="range" min={5} max={45} value={m.v0} onChange={(e) => m.setV0(+e.target.value)} className="mt-1 h-2 w-full" />
-            </label>
-            <label className="text-xs font-bold">
-              <span className="text-muted-foreground">Angle: {m.angle}°</span>
-              <input type="range" min={5} max={85} value={m.angle} onChange={(e) => m.setAngle(+e.target.value)} className="mt-1 h-2 w-full" />
-            </label>
-            <label className="text-xs font-bold">
-              <span className="text-muted-foreground">Height h₀: {m.h0} m</span>
-              <input type="range" min={0} max={20} value={m.h0} onChange={(e) => m.setH0(+e.target.value)} className="mt-1 h-2 w-full" />
-            </label>
-          </div>
-          <div className="clay-sm p-3">
-            <p className="text-[10px] font-extrabold uppercase text-muted-foreground">Flight computer</p>
-            <p className="mt-1 text-sm font-extrabold">Range = {m.range.toFixed(1)} m · flight time = {m.time.toFixed(2)} s</p>
-            <button onClick={() => onCollect({ iv: m.angle, dv: m.range, dv2: m.time })} className="clay-btn clay-press mt-2 px-3 py-1.5 text-xs font-bold">
-              Collect data point
-            </button>
-          </div>
-        </div>
-      );
-    }
-    case "rc": {
-      const m = useRcModel();
-      return (
-        <div className="space-y-3">
-          <div className="grid gap-3 sm:grid-cols-2">
-            <label className="text-xs font-bold">
-              <span className="text-muted-foreground">R: {m.R} kΩ</span>
-              <input type="range" min={1} max={50} value={m.R} onChange={(e) => m.setR(+e.target.value)} className="mt-1 h-2 w-full" />
-            </label>
-            <label className="text-xs font-bold">
-              <span className="text-muted-foreground">C: {m.C} µF</span>
-              <input type="range" min={10} max={500} value={m.C} onChange={(e) => m.setC(+e.target.value)} className="mt-1 h-2 w-full" />
-            </label>
-          </div>
-          <div className="clay-sm p-3">
-            <p className="text-[10px] font-extrabold uppercase text-muted-foreground">63% crossing time</p>
-            <p className="mt-1 text-sm font-extrabold">τ = RC = {m.tau.toFixed(2)} s</p>
-            <button onClick={() => onCollect({ iv: m.R, dv: m.tau, dv2: m.C })} className="clay-btn clay-press mt-2 px-3 py-1.5 text-xs font-bold">
-              Collect data point
-            </button>
-          </div>
-        </div>
-      );
-    }
-    case "gas": {
-      const m = useGasModel();
-      return (
-        <div className="space-y-3">
-          <div className="grid gap-3 sm:grid-cols-3">
-            <label className="text-xs font-bold">
-              <span className="text-muted-foreground">T: {m.temp} K</span>
-              <input type="range" min={150} max={600} value={m.temp} onChange={(e) => m.setTemp(+e.target.value)} className="mt-1 h-2 w-full" />
-            </label>
-            <label className="text-xs font-bold">
-              <span className="text-muted-foreground">V: {m.vol.toFixed(2)} ×10⁻³ m³</span>
-              <input type="range" min={0.4} max={2.5} step={0.05} value={m.vol} onChange={(e) => m.setVol(+e.target.value)} className="mt-1 h-2 w-full" />
-            </label>
-            <label className="text-xs font-bold">
-              <span className="text-muted-foreground">N: {m.n} particles</span>
-              <input type="range" min={20} max={120} value={m.n} onChange={(e) => m.setN(+e.target.value)} className="mt-1 h-2 w-full" />
-            </label>
-          </div>
-          <div className="clay-sm p-3">
-            <p className="text-[10px] font-extrabold uppercase text-muted-foreground">Pressure gauge</p>
-            <p className="mt-1 text-sm font-extrabold">P = {m.P.toFixed(1)} kPa · P·V = {(m.P * m.vol).toFixed(1)}</p>
-            <button onClick={() => onCollect({ iv: m.vol, dv: m.P, dv2: m.temp })} className="clay-btn clay-press mt-2 px-3 py-1.5 text-xs font-bold">
-              Collect data point
-            </button>
-          </div>
-        </div>
-      );
-    }
+    case "force": { const friction = p.mu * p.mass * (p.g ?? 9.8) * Math.cos((p.angle ?? 0) * Math.PI / 180); x = Math.max(0, p.force - friction); y = x / p.mass; expected = y; readout = { "Net force": `${x.toFixed(2)} N`, "Acceleration": `${y.toFixed(3)} m/s²`, "Normal force": `${(p.mass * (p.g ?? 9.8)).toFixed(2)} N` }; break; }
+    case "energy": { x = p.distance; y = Math.max(0, (p.force - p.friction) * p.distance); expected = y; readout = { "Net work": `${y.toFixed(2)} J`, "Final speed": `${Math.sqrt(2 * y / p.mass).toFixed(2)} m/s`, "Thermal transfer": `${(p.friction * p.distance).toFixed(2)} J` }; break; }
+    case "collision": { const vf = (p.m1 * p.v1 + p.m2 * p.v2) / (p.m1 + p.m2); x = p.restitution; y = p.m1 * p.v1 + p.m2 * p.v2; expected = y; readout = { "Final shared velocity": `${vf.toFixed(3)} m/s`, "Initial momentum": `${y.toFixed(3)} kg·m/s`, "Initial kinetic energy": `${(0.5 * p.m1 * p.v1 ** 2 + 0.5 * p.m2 * p.v2 ** 2).toFixed(3)} J`, "Restitution": p.restitution.toFixed(2) }; break; }
+    case "rotation": { const torque = p.radius * p.force * Math.sin(p.angle * Math.PI / 180); x = torque; y = torque / p.inertia; expected = y; readout = { "Torque": `${torque.toFixed(3)} N·m`, "Angular acceleration": `${y.toFixed(3)} rad/s²`, "Model": "τ = Iα" }; break; }
+    case "oscillation": { x = p.mass; y = 2 * Math.PI * Math.sqrt(p.mass / p.k); expected = y; readout = { "Period": `${y.toFixed(3)} s`, "Angular frequency": `${(2 * Math.PI / y).toFixed(3)} rad/s`, "Stored spring energy": `${(0.5 * p.k * p.amplitude ** 2).toFixed(3)} J` }; break; }
+    case "fluid": { x = p.depth; y = p.density * p.g * p.depth / 1000; expected = y; readout = { "Gauge pressure": `${y.toFixed(3)} kPa`, "Buoyant force": `${(p.density * p.g * p.volume).toFixed(3)} N`, "Density": `${p.density.toFixed(0)} kg/m³` }; break; }
+    case "gas": { x = 1 / p.volume; y = (p.particles * p.temp * 5.56) / p.volume / 1000; expected = y; readout = { "Pressure": `${y.toFixed(2)} kPa`, "PV/T": `${(y * p.volume / p.temp).toFixed(4)} kPa·L/K`, "Particle model": `${p.particles} relative particles` }; visual = "gas"; break; }
+    case "field": { x = 1 / p.distance ** 2; y = 8.99e9 * Math.abs(p.charge * 1e-6) / p.distance ** 2; expected = y; readout = { "Field magnitude": `${y.toFixed(2)} N/C`, "Direction": p.charge >= 0 ? "radially outward for + test charge" : "radially inward for + test charge", "Force on test charge": `${(y * Math.abs(p.test * 1e-6)).toExponential(2)} N` }; visual = "field"; break; }
+    case "potential": { x = p.distance; y = 8.99e9 * p.charge * 1e-6 / p.distance; expected = y; readout = { "Potential": `${y.toFixed(2)} V`, "Potential energy": `${(y * p.test * 1e-6).toExponential(2)} J`, "Field magnitude": `${(Math.abs(y) / p.distance).toFixed(2)} N/C` }; visual = "potential"; break; }
+    case "circuit": { const equivalent = p.resistance / Math.max(1, p.branches); x = equivalent; y = p.voltage / equivalent; expected = y; readout = { "Equivalent resistance": `${equivalent.toFixed(2)} Ω`, "Total current": `${y.toFixed(3)} A`, "Power": `${(p.voltage * y).toFixed(3)} W`, "Topology": p.branches > 1 ? `${p.branches} parallel branches` : "single series path" }; visual = "circuit"; break; }
+    case "rc": { const tau = p.resistance * 1000 * p.capacitance * 1e-6; x = tau; y = p.voltage * (1 - Math.exp(-1)); expected = y; readout = { "Time constant": `${tau.toFixed(3)} s`, "Voltage at t = τ": `${y.toFixed(3)} V`, "Initial current": `${(p.voltage / (p.resistance * 1000)).toFixed(5)} A`, "Stored energy at τ": `${(0.5 * p.capacitance * 1e-6 * y ** 2).toExponential(3)} J` }; visual = "rc"; break; }
+    case "magnetic": { const mu0 = 4 * Math.PI * 1e-7; x = Math.abs(p.current); y = mu0 * Math.abs(p.current) / (2 * Math.PI * p.distance) * 1e6; expected = y; readout = { "Field magnitude": `${y.toFixed(3)} μT`, "Field direction": p.current >= 0 ? "counterclockwise around wire" : "clockwise around wire", "Magnetic force": `${(Math.abs(p.charge * 1e-6) * p.speed * y * 1e-6).toExponential(3)} N` }; visual = "field"; break; }
+    case "optics": { const denom = 1 / p.focal - 1 / p.object; const image = Math.abs(denom) < 1e-9 ? Infinity : 1 / denom; x = p.object; y = Number.isFinite(image) ? image : 1000; expected = y; readout = { "Image distance": Number.isFinite(image) ? `${image.toFixed(2)} cm` : "at infinity", "Magnification": Number.isFinite(image) ? `${(-image / p.object).toFixed(3)}×` : "unbounded near focus", "Image type": image > 0 ? "real, inverted" : "virtual, upright" }; visual = "optics"; break; }
+    case "wave": { x = p.frequency; y = p.speed / p.frequency; expected = y; readout = { "Wavelength": `${y.toFixed(3)} m`, "Period": `${(1 / p.frequency).toFixed(3)} s`, "Wave speed": `${p.speed.toFixed(2)} m/s`, "Amplitude": `${p.amplitude.toFixed(2)} m` }; visual = "wave"; break; }
+    case "modern": { const frequency = 2.998e8 / (p.wavelength * 1e-9); const photon = 1240 / p.wavelength; x = frequency / 1e14; y = Math.max(0, photon - p.work); expected = y; readout = { "Frequency": `${(frequency / 1e14).toFixed(3)} × 10¹⁴ Hz`, "Photon energy": `${photon.toFixed(3)} eV`, "Maximum kinetic energy": `${y.toFixed(3)} eV`, "Photoelectrons": y > 0 ? `${(p.intensity * 100).toFixed(0)} relative/s` : "none" }; visual = "modern"; break; }
+    case "calculus": { x = p.time; const v = p.v0 + p.a0 * p.time + 0.5 * p.jerk * p.time ** 2; y = v; expected = v; readout = { "Velocity from integral": `${v.toFixed(3)} m/s`, "Acceleration at t": `${(p.a0 + p.jerk * p.time).toFixed(3)} m/s²`, "Numerical step": "adaptive trapezoid estimate" }; visual = "calculus"; break; }
+    case "induction": { x = p.fieldRate; y = Math.abs(p.turns * p.area * p.fieldRate); expected = y; readout = { "Induced emf magnitude": `${y.toFixed(3)} V`, "Polarity": p.fieldRate >= 0 ? "opposes increasing flux" : "opposes decreasing flux", "Flux rate": `${p.area * p.fieldRate} Wb/s` }; visual = "induction"; break; }
   }
+  return { x, y, expected, readout, visual };
 }
 
-// ---------------- graphing with least-squares fit ----------------
-function LabGraph({ trials, axisOptions }: { trials: Trial[]; axisOptions: { key: "iv" | "dv" | "derived"; label: string; calc?: (t: Trial) => number }[] }) {
-  const [xKey, setXKey] = useState(axisOptions[0].label);
-  const [yKey, setYKey] = useState(axisOptions[1]?.label ?? axisOptions[0].label);
-  const byLabel = Object.fromEntries(axisOptions.map((o) => [o.label, o]));
-  const xs = trials.map((t) => (byLabel[xKey].calc ? byLabel[xKey].calc!(t) : t[byLabel[xKey].key as "iv" | "dv"]));
-  const ys = trials.map((t) => (byLabel[yKey].calc ? byLabel[yKey].calc!(t) : t[byLabel[yKey].key as "iv" | "dv"]));
-
-  const fit = useMemo(() => {
-    if (xs.length < 2) return null;
-    const n = xs.length;
-    const sx = xs.reduce((a, b) => a + b, 0), sy = ys.reduce((a, b) => a + b, 0);
-    const sxx = xs.reduce((a, b) => a + b * b, 0), sxy = xs.reduce((a, b, i) => a + xs[i] * ys[i], 0);
-    const denom = n * sxx - sx * sx;
-    if (Math.abs(denom) < 1e-12) return null;
-    const slope = (n * sxy - sx * sy) / denom;
-    const intercept = (sy - slope * sx) / n;
-    const ybar = sy / n;
-    const ssTot = ys.reduce((a, y) => a + (y - ybar) ** 2, 0);
-    const ssRes = ys.reduce((a, y, i) => a + (y - (slope * xs[i] + intercept)) ** 2, 0);
-    const r2 = ssTot > 0 ? 1 - ssRes / ssTot : 1;
-    return { slope, intercept, r2 };
-  }, [xs.join(","), ys.join(",")]);
-
-  const W = 420, H = 260, pad = 44;
-  const xMin = Math.min(...xs, 0), xMax = Math.max(...xs, 1);
-  const yMin = Math.min(...ys, 0), yMax = Math.max(...ys, 1);
-  const toX = (x: number) => pad + ((x - xMin) / (xMax - xMin || 1)) * (W - pad - 12);
-  const toY = (y: number) => H - pad - ((y - yMin) / (yMax - yMin || 1)) * (H - pad - 14);
-
-  return (
-    <div>
-      <div className="flex flex-wrap gap-2">
-        {(["x-axis", "y-axis"] as const).map((axis, ai) => (
-          <select
-            key={axis}
-            value={ai === 0 ? xKey : yKey}
-            onChange={(e) => (ai === 0 ? setXKey(e.target.value) : setYKey(e.target.value))}
-            className="clay-inset px-2.5 py-1.5 text-xs font-bold outline-none"
-          >
-            {axisOptions.map((o) => (
-              <option key={o.label} value={o.label}>{axis}: {o.label}</option>
-            ))}
-          </select>
-        ))}
-      </div>
-      {trials.length === 0 ? (
-        <p className="clay-inset mt-3 p-6 text-center text-xs text-muted-foreground">Collect at least one data point to see the graph.</p>
-      ) : (
-        <svg viewBox={`0 0 ${W} ${H}`} className="clay-inset mt-3 w-full max-w-md">
-          <line x1={pad} y1={H - pad} x2={W - 12} y2={H - pad} stroke="currentColor" strokeWidth="1" opacity="0.4" />
-          <line x1={pad} y1={14} x2={pad} y2={H - pad} stroke="currentColor" strokeWidth="1" opacity="0.4" />
-          {fit && (
-            <line
-              x1={toX(xMin)} y1={toY(fit.slope * xMin + fit.intercept)}
-              x2={toX(xMax)} y2={toY(fit.slope * xMax + fit.intercept)}
-              stroke="#ff8fb1" strokeWidth="2" strokeDasharray="6 4" opacity="0.8"
-            />
-          )}
-          {xs.map((x, i) => (
-            <circle key={i} cx={toX(x)} cy={toY(ys[i])} r="4" fill="#7c6cf4" stroke="white" strokeWidth="1" />
-          ))}
-          <text x={W - 14} y={H - pad + 14} textAnchor="end" fontSize="9" fill="currentColor" opacity="0.6">{xKey}</text>
-          <text x={pad - 6} y={20} textAnchor="start" fontSize="9" fill="currentColor" opacity="0.6" transform={`rotate(-90 ${pad - 6} 20)`}>{yKey}</text>
-        </svg>
-      )}
-      {fit && (
-        <div className="clay-tint mt-2 p-3 text-xs">
-          <p className="font-bold">Best fit: y = {fit.slope.toFixed(4)}·x + {fit.intercept.toFixed(3)} &nbsp; r² = {fit.r2.toFixed(4)}</p>
-          <p className="mt-1 text-muted-foreground">The slope carries the physics — use the Analysis hint to convert it into a measured constant.</p>
-        </div>
-      )}
-    </div>
-  );
+function LabVisual({ kind, result, params }: { kind: ModelKind; result: Result; params: Record<string, number> }) {
+  const W = 460, H = 190;
+  if (kind === "motion" || kind === "energy" || kind === "oscillation" || kind === "wave" || kind === "calculus") {
+    const points = Array.from({ length: 36 }, (_, i) => { const t = i / 35 * (params.time ?? 4); const px = 20 + i / 35 * 420; if (kind === "wave") return [px, 95 - Math.sin(t * params.frequency * 2 * Math.PI) * params.amplitude * 45]; if (kind === "oscillation") return [px, 95 - Math.cos(t * 2 * Math.PI / (result.y || 1)) * params.amplitude * 100 * Math.exp(-(params.damping ?? 0) * t)]; if (kind === "calculus") return [px, 150 - (params.v0 + params.a0 * t + 0.5 * params.jerk * t * t) * 10]; if (kind === "energy") return [px, 150 - Math.max(0, (params.force - params.friction) * t) * 4]; if (params.angle !== undefined) { const rad = params.angle * Math.PI / 180; const flight = (params.v0 * Math.sin(rad) + Math.sqrt((params.v0 * Math.sin(rad)) ** 2 + 2 * (params.g ?? 9.8) * params.height)) / (params.g ?? 9.8); const localT = t / (params.time ?? 4) * flight; return [px, 150 - (params.height + params.v0 * Math.sin(rad) * localT - 0.5 * (params.g ?? 9.8) * localT ** 2) * 4]; } return [px, 150 - (params.x0 + params.v0 * t + 0.5 * params.a * t * t) * 8]; });
+    return <svg viewBox={`0 0 ${W} ${H}`} className="h-48 w-full rounded-xl bg-background/40" role="img" aria-label="Live physical motion graph"><line x1="35" y1="160" x2="445" y2="160" stroke="currentColor" opacity=".45" /><line x1="35" y1="20" x2="35" y2="160" stroke="currentColor" opacity=".45" /><polyline points={points.map(([x, y]) => `${x},${Math.max(20, Math.min(160, y))}`).join(" ")} fill="none" stroke="#7c6cf4" strokeWidth="3" /><text x="440" y="178" textAnchor="end" fontSize="11" fill="currentColor">time (s)</text><text x="25" y="25" textAnchor="end" fontSize="11" fill="currentColor">state</text><text x="230" y="14" textAnchor="middle" fontSize="12" fill="currentColor">Live model representation</text></svg>;
+  }
+  if (kind === "field" || kind === "potential" || kind === "magnetic") return <svg viewBox="0 0 460 190" className="h-48 w-full rounded-xl bg-background/40" role="img" aria-label="Live field vector diagram"><circle cx="230" cy="95" r="18" fill={kind === "potential" ? "#ffc46b" : "#ff8fb1"} /><text x="230" y="100" textAnchor="middle" fontSize="15" fill="#fff">{kind === "potential" ? "q" : kind === "magnetic" ? "I" : "+q"}</text>{Array.from({ length: 12 }, (_, i) => { const a = i / 12 * Math.PI * 2; const len = Math.min(70, 20 + Math.abs(result.y) / 1000); return <g key={i}><line x1={230 + Math.cos(a) * 30} y1={95 + Math.sin(a) * 30} x2={230 + Math.cos(a) * (30 + len)} y2={95 + Math.sin(a) * (30 + len)} stroke="#6fd6c8" strokeWidth="2" /><polygon points={`${230 + Math.cos(a) * (30 + len)},${95 + Math.sin(a) * (30 + len)} ${230 + Math.cos(a + .16) * (24 + len)},${95 + Math.sin(a + .16) * (24 + len)} ${230 + Math.cos(a - .16) * (24 + len)},${95 + Math.sin(a - .16) * (24 + len)}`} fill="#6fd6c8" /></g>; })}<text x="230" y="178" textAnchor="middle" fontSize="12" fill="currentColor">Vectors update from the measured model</text></svg>;
+  if (kind === "circuit" || kind === "rc") return <svg viewBox="0 0 460 190" className="h-48 w-full rounded-xl bg-background/40" role="img" aria-label="Live circuit schematic"><path d="M80 45 H380 V145 H80 Z" fill="none" stroke="currentColor" strokeWidth="2" /><line x1="180" y1="32" x2="180" y2="58" stroke="currentColor" strokeWidth="5" /><line x1="195" y1="38" x2="195" y2="52" stroke="currentColor" strokeWidth="3" /><rect x="260" y="35" width="70" height="22" rx="5" fill="#ffc46b" /><text x="295" y="50" textAnchor="middle" fontSize="12">R = {(params.resistance ?? 0).toFixed(1)} {kind === "rc" ? "kΩ" : "Ω"}</text>{kind === "rc" && <><line x1="350" y1="95" x2="410" y2="95" stroke="#7c6cf4" strokeWidth="4" /><line x1="350" y1="108" x2="410" y2="108" stroke="#7c6cf4" strokeWidth="4" /><text x="380" y="130" textAnchor="middle" fontSize="11">C = {params.capacitance} μF</text></>}<text x="230" y="178" textAnchor="middle" fontSize="12">I = {(result.readout["Total current"] ?? result.readout["Initial current"] ?? "—")}</text></svg>;
+  if (kind === "optics") return <svg viewBox="0 0 460 190" className="h-48 w-full rounded-xl bg-background/40" role="img" aria-label="Live lens ray diagram"><line x1="30" y1="95" x2="430" y2="95" stroke="currentColor" opacity=".5" /><ellipse cx="230" cy="95" rx="8" ry="65" fill="#7c6cf433" stroke="#7c6cf4" strokeWidth="2" /><line x1={230 - params.object} y1="95" x2={230 - params.object} y2="35" stroke="#ff8fb1" strokeWidth="3" /><line x1={230 - params.object} y1="35" x2="230" y2="95" stroke="#6fd6c8" strokeWidth="2" /><line x1="230" y1="95" x2={230 + Math.min(180, Math.max(-180, result.y))} y2="95" stroke="#6fd6c8" strokeWidth="2" /><text x="230" y="178" textAnchor="middle" fontSize="12">f = {params.focal} cm · dₒ = {params.object} cm</text></svg>;
+  return <svg viewBox="0 0 460 190" className="h-48 w-full rounded-xl bg-background/40" role="img" aria-label="Live laboratory apparatus"><rect x="70" y="45" width="320" height="100" rx="12" fill="#7c6cf422" stroke="#7c6cf4" /><text x="230" y="100" textAnchor="middle" fontSize="15">{result.visual} model</text><text x="230" y="178" textAnchor="middle" fontSize="12">Measured readouts respond to every control</text></svg>;
 }
 
-// ---------------- main page ----------------
+function LabGraph({ trials, lab }: { trials: Trial[]; lab: LabSpec }) {
+  const [xMode, setXMode] = useState<"x" | "index">("x");
+  const points = trials.map((trial, index) => ({ x: xMode === "x" ? trial.x : index + 1, y: trial.y }));
+  const fit = useMemo(() => { if (points.length < 2) return null; const n = points.length, sx = points.reduce((s, p) => s + p.x, 0), sy = points.reduce((s, p) => s + p.y, 0), sxx = points.reduce((s, p) => s + p.x * p.x, 0), sxy = points.reduce((s, p) => s + p.x * p.y, 0), d = n * sxx - sx * sx; if (Math.abs(d) < 1e-10) return null; const slope = (n * sxy - sx * sy) / d, intercept = (sy - slope * sx) / n, mean = sy / n, total = points.reduce((s, p) => s + (p.y - mean) ** 2, 0), residual = points.reduce((s, p) => s + (p.y - slope * p.x - intercept) ** 2, 0); return { slope, intercept, r2: total ? 1 - residual / total : 1 }; }, [trials, xMode]);
+  const W = 460, H = 270, pad = 48, xmin = Math.min(0, ...points.map((p) => p.x)), xmax = Math.max(1, ...points.map((p) => p.x)), ymin = Math.min(0, ...points.map((p) => p.y)), ymax = Math.max(1, ...points.map((p) => p.y));
+  const tx = (x: number) => pad + (x - xmin) / (xmax - xmin || 1) * (W - pad - 15), ty = (y: number) => H - pad - (y - ymin) / (ymax - ymin || 1) * (H - pad - 20);
+  return <div><div className="flex flex-wrap items-center justify-between gap-2"><p className="text-xs font-bold">{lab.yLabel} vs {lab.xLabel}</p><select value={xMode} onChange={(e) => setXMode(e.target.value as "x" | "index")} className="clay-inset px-2 py-1 text-xs font-semibold"><option value="x">Measured x variable</option><option value="index">Trial number</option></select></div>{points.length < 1 ? <p className="clay-inset mt-2 p-6 text-center text-xs text-muted-foreground">Collect at least one measurement to plot the experiment.</p> : <svg viewBox={`0 0 ${W} ${H}`} className="clay-inset mt-2 w-full" role="img" aria-label={`${lab.yLabel} versus ${lab.xLabel} graph`}><line x1={pad} y1={H - pad} x2={W - 15} y2={H - pad} stroke="currentColor" opacity=".45" /><line x1={pad} y1={15} x2={pad} y2={H - pad} stroke="currentColor" opacity=".45" />{[0.25, .5, .75].map((f) => <g key={f}><line x1={pad} y1={15 + f * (H - pad - 20)} x2={W - 15} y2={15 + f * (H - pad - 20)} stroke="currentColor" opacity=".12" /><line x1={pad - 4} y1={15 + f * (H - pad - 20)} x2={pad} y2={15 + f * (H - pad - 20)} stroke="currentColor" /><text x={pad - 7} y={18 + f * (H - pad - 20)} textAnchor="end" fontSize="9" fill="currentColor">{(ymax - f * (ymax - ymin)).toFixed(1)}</text></g>)}{points.map((p, i) => <circle key={i} cx={tx(p.x)} cy={ty(p.y)} r="5" fill="#7c6cf4" />)}{fit && <line x1={tx(xmin)} y1={ty(fit.slope * xmin + fit.intercept)} x2={tx(xmax)} y2={ty(fit.slope * xmax + fit.intercept)} stroke="#ff8fb1" strokeWidth="2" strokeDasharray="6 4" />}<text x={W - 16} y={H - pad + 18} textAnchor="end" fontSize="10" fill="currentColor">{xMode === "x" ? lab.xLabel : "Trial number"}</text><text x={pad - 8} y={18} textAnchor="start" fontSize="10" fill="currentColor" transform={`rotate(-90 ${pad - 8} 18)`}>{lab.yLabel}</text><text x={W / 2} y={12} textAnchor="middle" fontSize="12" fill="currentColor">{lab.yLabel} as a function of {xMode === "x" ? lab.xLabel : "trial number"}</text></svg>}{fit && <div className="clay-tint mt-2 p-3 text-xs"><strong>Fit:</strong> y = {fit.slope.toFixed(4)}x + {fit.intercept.toFixed(4)} · r² = {fit.r2.toFixed(4)}<p className="mt-1 text-muted-foreground">Interpret the slope using the model equation; the app does not mark the conclusion for you.</p></div>}</div>;
+}
+
+function ExperimentQuestions({ lab, result, mode, onScore }: { lab: LabSpec; result: Result | null; mode: LabMode; onScore: (ok: boolean) => void }) {
+  const [answer, setAnswer] = useState(""); const [submitted, setSubmitted] = useState(false); const [hint, setHint] = useState(0);
+  const expected = result ? result.expected : 0;
+  const question = mode === "challenge" || mode === "practical" ? lab.prompt : `Before collecting data: ${lab.prompt}`;
+  const check = () => { const numeric = Number(answer); const ok = Number.isFinite(numeric) && result ? Math.abs(numeric - expected) / Math.max(1, Math.abs(expected)) < 0.12 : answer.trim().length > 12; setSubmitted(true); onScore(ok); };
+  return <div className="clay-tint p-4"><p className="text-xs font-extrabold uppercase tracking-wide text-muted-foreground">AP-style lab question</p><p className="mt-2 text-sm leading-6">{question}</p><p className="mt-2 text-xs text-muted-foreground">{result ? `Use the measured result (${result.y.toFixed(3)}) or explain your prediction in words.` : "Run a measurement, then answer with evidence."}</p><textarea value={answer} disabled={submitted} onChange={(e) => setAnswer(e.target.value)} rows={3} className="clay-inset mt-2 w-full resize-y px-3 py-2 text-sm outline-none" placeholder="Justify your answer using the model, data, or graph…" />{hint > 0 && <p className="mt-2 rounded-lg bg-background/50 p-2 text-xs text-muted-foreground">Hint {hint}: {lab.hints[Math.min(hint - 1, lab.hints.length - 1)]}</p>}<div className="mt-2 flex flex-wrap gap-2"><Button variant="ghost" onClick={() => setHint((h) => Math.min(4, h + 1))} className="text-xs font-bold">Show hint {hint}/4</Button>{!submitted ? <Button onClick={check} disabled={!answer.trim()} className="clay-btn border-0 text-xs font-bold">Submit analysis</Button> : <div className="rounded-lg bg-background/50 px-3 py-2 text-xs font-semibold">{answer.trim().length > 12 ? "Response recorded. Compare your reasoning with the equation and data." : "Add a complete justification and retry."}</div>}</div></div>;
+}
+
+function LabWorkspace({ lab, saved, onSave, onComplete }: { lab: LabSpec; saved: { params: Record<string, number>; trials: Trial[]; notebook: { prediction: string; hypothesis: string; conclusion: string; error: string }; mode: LabMode }; onSave: (value: { params: Record<string, number>; trials: Trial[]; notebook: { prediction: string; hypothesis: string; conclusion: string; error: string }; mode: LabMode }) => void; onComplete: (lab: LabSpec) => void }) {
+  const [params, setParams] = useState(saved.params);
+  const [trials, setTrials] = useState(saved.trials);
+  const [notebook, setNotebook] = useState(saved.notebook);
+  const [mode, setMode] = useState<LabMode>(saved.mode);
+  const [result, setResult] = useState<Result | null>(null);
+  const [scored, setScored] = useState(0);
+  const current = useMemo(() => simulate(lab, params), [lab, params]);
+  const update = (key: string, value: number) => { const next = { ...params, [key]: value }; setParams(next); onSave({ params: next, trials, notebook, mode }); };
+  const collect = () => { const measured = current.expected * (1 + (Math.random() - 0.5) * 0.04) + (Math.abs(current.expected) < 0.01 ? (Math.random() - 0.5) * 0.002 : 0); const trial: Trial = { id: Date.now(), values: { ...params }, x: current.x, y: current.y, measured, expected: current.expected, at: Date.now() }; const next = [...trials, trial]; setTrials(next); setResult({ ...current, y: measured }); onSave({ params, trials: next, notebook, mode }); };
+  const reset = () => { const next = { params: defaultsFor(lab), trials: [], notebook: { prediction: "", hypothesis: "", conclusion: "", error: "" }, mode: "guided" as LabMode }; setParams(next.params); setTrials([]); setNotebook(next.notebook); setMode(next.mode); setResult(null); onSave(next); };
+  const randomize = () => { const next = Object.fromEntries(lab.controls.map((control) => [control.key, Math.round((control.min + Math.random() * (control.max - control.min)) / control.step) * control.step])); setParams(next); setResult(null); onSave({ params: next, trials, notebook, mode }); };
+  const updateNote = (key: keyof typeof notebook, value: string) => { const next = { ...notebook, [key]: value }; setNotebook(next); onSave({ params, trials, notebook: next, mode }); };
+  const recordScore = (ok: boolean) => { setScored((value) => value + (ok ? 1 : 0)); if (ok) progress.recordAnswer(`lab-${lab.id}`, true, 1, undefined, { id: `lab-${lab.id}-analysis`, source: "lab", skill: `${lab.topic}::experimental` }); onComplete(lab); };
+  return <div className="mt-4 grid gap-4 xl:grid-cols-[1.1fr_.9fr]"><section className="space-y-4"><div className="clay-sm p-3"><div className="flex flex-wrap items-center justify-between gap-2"><div><p className="text-xs font-extrabold uppercase tracking-wide text-muted-foreground">Control panel · {mode}</p><p className="text-sm font-bold">Change a parameter, predict, then run a measurement.</p></div><div className="flex gap-1"><button onClick={() => setMode("guided")} className={cn("clay-sm px-2 py-1 text-[11px] font-bold", mode === "guided" && "ring-2 ring-[var(--clay-4)]")}>Guided</button><button onClick={() => setMode("explore")} className={cn("clay-sm px-2 py-1 text-[11px] font-bold", mode === "explore" && "ring-2 ring-[var(--clay-4)]")}>Explore</button><button onClick={() => setMode("challenge")} className={cn("clay-sm px-2 py-1 text-[11px] font-bold", mode === "challenge" && "ring-2 ring-[var(--clay-4)]")}>Challenge</button><button onClick={() => setMode("practical")} className={cn("clay-sm px-2 py-1 text-[11px] font-bold", mode === "practical" && "ring-2 ring-[var(--clay-4)]")}>AP practical</button></div></div><div className="mt-3 grid gap-3 sm:grid-cols-2">{lab.controls.map((control) => <label key={control.key} className="text-xs font-bold"><span className="text-muted-foreground">{control.label}: {params[control.key]} {control.unit}</span><input aria-label={control.label} type="range" min={control.min} max={control.max} step={control.step} value={params[control.key]} onChange={(e) => update(control.key, Number(e.target.value))} className="mt-1 h-2 w-full" /></label>)}</div></div><div className="clay-inset p-3"><LabVisual kind={lab.model} result={current} params={params} /><div className="mt-3 grid gap-2 sm:grid-cols-2">{Object.entries(current.readout).map(([key, value]) => <div key={key} className="clay-sm p-2"><p className="text-[10px] uppercase text-muted-foreground">{key}</p><p className="text-sm font-extrabold">{value}</p></div>)}</div><div className="mt-3 flex flex-wrap gap-2"><Button onClick={collect} className="clay-btn border-0 font-bold"><Play className="mr-1 size-4" /> Run measurement</Button><Button onClick={randomize} variant="ghost" className="text-xs font-bold"><Shuffle className="mr-1 size-4" /> Randomize setup</Button><Button onClick={reset} variant="ghost" className="text-xs font-bold"><RotateCcw className="mr-1 size-4" /> Reset</Button></div></div></section><section className="space-y-4"><div className="clay-sm p-4"><p className="text-xs font-extrabold uppercase tracking-wide text-muted-foreground">Notebook · predict → test → explain</p>{([ ["prediction", "Prediction"], ["hypothesis", "Hypothesis"], ["conclusion", "Conclusion"], ["error", "Uncertainty / error analysis"] ] as const).map(([key, label]) => <textarea key={key} value={notebook[key]} onChange={(e) => updateNote(key, e.target.value)} rows={2} placeholder={label} className="clay-inset mt-2 w-full resize-y px-3 py-2 text-sm outline-none" />)}</div><div className="clay-sm p-4"><p className="text-xs font-extrabold uppercase tracking-wide text-muted-foreground">Data table · {trials.length} measurements</p>{trials.length === 0 ? <p className="mt-2 text-xs text-muted-foreground">No measurements yet. Change controls and run repeated trials.</p> : <div className="mt-2 overflow-x-auto"><table className="w-full min-w-[440px] text-xs"><thead><tr><th className="px-2 py-2 text-left">Trial</th><th className="px-2 py-2 text-left">{lab.xLabel}</th><th className="px-2 py-2 text-left">{lab.yLabel}</th><th className="px-2 py-2 text-left">Expected</th><th /></tr></thead><tbody>{trials.map((trial, index) => <tr key={trial.id} className="border-t border-border/50"><td className="px-2 py-2">{index + 1}</td><td className="px-2 py-2">{trial.x.toFixed(3)}</td><td className="px-2 py-2">{trial.measured.toFixed(3)}</td><td className="px-2 py-2 text-muted-foreground">{trial.expected.toFixed(3)}</td><td className="px-2 py-2 text-right"><button aria-label={`Delete trial ${index + 1}`} onClick={() => { const next = trials.filter((_, i) => i !== index); setTrials(next); onSave({ params, trials: next, notebook, mode }); }}><Trash2 className="size-3.5 text-muted-foreground" /></button></td></tr>)}</tbody></table></div>}<div className="mt-3 flex flex-wrap gap-2"><Button onClick={() => { setTrials([]); onSave({ params, trials: [], notebook, mode }); }} disabled={!trials.length} variant="ghost" className="text-xs font-bold"><Trash2 className="mr-1 size-3.5" /> Clear data</Button><Button onClick={() => { const csv = [`Trial,${lab.xLabel},${lab.yLabel},Expected`, ...trials.map((t, i) => `${i + 1},${t.x},${t.measured},${t.expected}`)].join("\n"); const url = URL.createObjectURL(new Blob([csv], { type: "text/csv" })); const a = document.createElement("a"); a.href = url; a.download = `${lab.id}-lab-data.csv`; a.click(); URL.revokeObjectURL(url); }} disabled={!trials.length} variant="ghost" className="text-xs font-bold"><Download className="mr-1 size-3.5" /> Save CSV</Button></div></div><LabGraph trials={trials} lab={lab} /><ExperimentQuestions lab={lab} result={result} mode={mode} onScore={recordScore} /></section></div>;
+}
+
+function loadSaved(): Record<string, { params: Record<string, number>; trials: Trial[]; notebook: { prediction: string; hypothesis: string; conclusion: string; error: string }; mode: LabMode }> { try { const raw = localStorage.getItem("ap-physics-labs-v2"); if (raw) return JSON.parse(raw); } catch { /* fresh */ } return {}; }
+
 export default function Labs() {
   const p = useProgress();
-  const [openId, setOpenId] = useState<LabId | null>(null);
-  const [allData, setAllData] = useState<Record<LabId, DataState>>(() => {
-    try {
-      const raw = localStorage.getItem("apm-lab-data");
-      if (raw) return JSON.parse(raw) as Record<LabId, DataState>;
-    } catch { /* fresh */ }
-    return { pendulum: emptyData, spring: emptyData, projectile: emptyData, rc: emptyData, gas: emptyData };
-  });
-  const [prediction, setPrediction] = useState("");
-  const [claim, setClaim] = useState("");
-  const [labNotes, setLabNotes] = useState("");
-
-  const persist = (d: Record<LabId, DataState>) => {
-    setAllData(d);
-    try { localStorage.setItem("apm-lab-data", JSON.stringify(d)); } catch { /* keep going */ }
-  };
-
-  const lab = LABS.find((l) => l.id === openId) ?? null;
-
-  const collect = (t: Trial) => {
-    if (!lab) return;
-    const next = { ...allData, [lab.id]: { trials: [...allData[lab.id].trials, t] } };
-    persist(next);
-    progress.completeLesson(`lab-${lab.id}`, 50, 1);
-  };
-
-  const exportCsv = () => {
-    if (!lab) return;
-    const rows = allData[lab.id].trials.map((t) => `${t.iv},${t.dv},${t.dv2}`).join("\n");
-    const header = `${lab.iv},${lab.dv},notes`;
-    const blob = new Blob([`${header}\n${rows}\n`], { type: "text/csv" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url; a.download = `${lab.id}-data.csv`; a.click();
-    URL.revokeObjectURL(url);
-  };
-
-  return (
-    <div className="mx-auto max-w-4xl">
-      <h1 className="flex items-center gap-2 text-3xl font-extrabold tracking-tight"><FlaskConical className="size-7 text-[var(--clay-4)]" /> Virtual labs</h1>
-      <p className="mt-1 text-sm text-muted-foreground">
-        Real models under every lab: change a parameter and the physics actually changes. Collect data, graph it, fit a line, extract a constant.
-      </p>
-
-      <div className="mt-5 space-y-3">
-        {LABS.map((l) => {
-          const n = allData[l.id]?.trials.length ?? 0;
-          return (
-            <div key={l.id} className="clay p-5">
-              <div className="flex items-start justify-between gap-3">
-                <div>
-                  <h2 className="text-lg font-extrabold">{l.title}</h2>
-                  <p className="mt-0.5 text-sm text-muted-foreground">{l.question}</p>
-                </div>
-                <Button onClick={() => setOpenId(openId === l.id ? null : l.id)} className="clay-btn clay-press shrink-0 border-0 font-bold">
-                  <Play className="mr-1 size-3.5" /> {openId === l.id ? "Close" : "Run lab"}
-                </Button>
-              </div>
-              {n > 0 && <p className="mt-2 text-xs font-bold text-[#3d9c82]">{n} trial{n === 1 ? "" : "s"} collected on this device</p>}
-
-              {openId === l.id && (
-                <div className="mt-4 space-y-4">
-                  <div className="grid gap-3 sm:grid-cols-3">
-                    {[[ "Independent variable", l.iv], ["Dependent variable", l.dv], ["Controls", l.controls]].map(([k, v]) => (
-                      <div key={k} className="clay-sm p-3">
-                        <p className="text-[10px] font-extrabold uppercase text-muted-foreground">{k}</p>
-                        <p className="mt-0.5 text-xs font-bold">{v}</p>
-                      </div>
-                    ))}
-                  </div>
-
-                  <div>
-                    <p className="text-xs font-extrabold uppercase text-muted-foreground">1 · Predict before you measure</p>
-                    <textarea value={prediction} onChange={(e) => setPrediction(e.target.value)} rows={2}
-                      placeholder="If I change the IV, what do I expect the DV to do — and why? Sketch the relationship…"
-                      className="clay-inset mt-1 w-full resize-y px-3.5 py-2.5 text-sm outline-none placeholder:text-muted-foreground/70" />
-                  </div>
-
-                  <div>
-                    <p className="text-xs font-extrabold uppercase text-muted-foreground">2 · Procedure</p>
-                    <ol className="mt-1 list-decimal space-y-1 pl-5 text-sm text-muted-foreground">
-                      {l.method.map((m, i) => <li key={i}>{m}</li>)}
-                    </ol>
-                  </div>
-
-                  <div>
-                    <p className="text-xs font-extrabold uppercase text-muted-foreground">3 · Experiment & data collection</p>
-                    <div className="clay-inset mt-1 p-4">
-                      <LabRunner key={l.id} lab={l} data={allData[l.id]} onCollect={collect} />
-                    </div>
-                    {allData[l.id].trials.length > 0 && (
-                      <table className="mt-3 w-full text-sm">
-                        <thead>
-                          <tr>
-                            <th className="pb-1 text-left text-[11px] font-extrabold text-muted-foreground">Trial</th>
-                            <th className="pb-1 text-left text-[11px] font-extrabold text-muted-foreground">{l.iv}</th>
-                            <th className="pb-1 text-left text-[11px] font-extrabold text-muted-foreground">{l.dv}</th>
-                            <th />
-                          </tr>
-                        </thead>
-                        <tbody>
-                          {allData[l.id].trials.map((t, r) => (
-                            <tr key={r} className="border-t border-border/50">
-                              <td className="py-1 text-xs text-muted-foreground">{r + 1}</td>
-                              <td className="py-1 font-semibold">{t.iv}</td>
-                              <td className="py-1 font-semibold">{t.dv.toFixed(t.dv < 10 ? 3 : 1)}</td>
-                              <td className="py-1 text-right">
-                                <button onClick={() => persist({ ...allData, [l.id]: { trials: allData[l.id].trials.filter((_, i) => i !== r) } })}
-                                  className="text-muted-foreground hover:text-destructive"><Trash2 className="size-3.5" /></button>
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    )}
-                    <div className="mt-2 flex gap-2">
-                      <button onClick={exportCsv} disabled={allData[l.id].trials.length === 0} className="clay-sm clay-press inline-flex items-center gap-1 px-3 py-1.5 text-xs font-semibold disabled:opacity-40">
-                        <Download className="size-3.5" /> Export CSV
-                      </button>
-                      <button onClick={() => persist({ ...allData, [l.id]: { trials: [] } })} disabled={allData[l.id].trials.length === 0} className="clay-sm clay-press inline-flex items-center gap-1 px-3 py-1.5 text-xs font-semibold disabled:opacity-40">
-                        <Trash2 className="size-3.5" /> Clear data
-                      </button>
-                    </div>
-                  </div>
-
-                  <div>
-                    <p className="text-xs font-extrabold uppercase text-muted-foreground">4 · Graph & fit</p>
-                    <div className="mt-1">
-                      <LabGraph
-                        trials={allData[l.id].trials}
-                        axisOptions={
-                          l.id === "pendulum"
-                            ? [{ key: "iv", label: "L (cm)" }, { key: "dv", label: "T (s)" }, { key: "derived", label: "T² (s²)", calc: (t) => t.dv * t.dv }]
-                            : l.id === "spring"
-                              ? [{ key: "iv", label: "m (kg)" }, { key: "dv", label: "T (s)" }, { key: "derived", label: "T² (s²)", calc: (t) => t.dv * t.dv }]
-                              : l.id === "rc"
-                                ? [{ key: "iv", label: "R (kΩ)" }, { key: "dv", label: "τ (s)" }]
-                                : l.id === "gas"
-                                  ? [{ key: "iv", label: "V" }, { key: "dv", label: "P (kPa)" }, { key: "derived", label: "1/V", calc: (t) => 1 / t.iv }]
-                                  : [{ key: "iv", label: "θ (°)" }, { key: "dv", label: "Range (m)" }]
-                        }
-                      />
-                    </div>
-                    <p className="clay-tint mt-2 p-3 text-xs"><strong>Analysis:</strong> {l.analysis}</p>
-                  </div>
-
-                  <div>
-                    <p className="text-xs font-extrabold uppercase text-muted-foreground">5 · Claim & evidence</p>
-                    <textarea value={claim} onChange={(e) => setClaim(e.target.value)} rows={2}
-                      placeholder={l.claim}
-                      className="clay-inset mt-1 w-full resize-y px-3.5 py-2.5 text-sm outline-none placeholder:text-muted-foreground/70" />
-                    <textarea value={labNotes} onChange={(e) => setLabNotes(e.target.value)} rows={2}
-                      placeholder="Assumptions your model made, sources of uncertainty, what you'd do differently…"
-                      className="clay-inset mt-2 w-full resize-y px-3.5 py-2.5 text-sm outline-none placeholder:text-muted-foreground/70" />
-                  </div>
-                </div>
-              )}
-            </div>
-          );
-        })}
-      </div>
-    </div>
-  );
+  const [course, setCourse] = useState<CourseId | "all">("all");
+  const [topic, setTopic] = useState("all");
+  const [mode, setMode] = useState<"library" | "workspace">("library");
+  const [openId, setOpenId] = useState<string | null>(null);
+  const [saved, setSaved] = useState(loadSaved);
+  const lab = LABS.find((item) => item.id === openId) ?? null;
+  const topics = Array.from(new Set(LABS.filter((item) => course === "all" || item.course === course).map((item) => item.topic)));
+  const filtered = LABS.filter((item) => (course === "all" || item.course === course) && (topic === "all" || item.topic === topic));
+  const getSaved = (item: LabSpec) => saved[item.id] ?? { params: defaultsFor(item), trials: [], notebook: { prediction: "", hypothesis: "", conclusion: "", error: "" }, mode: "guided" as LabMode };
+  const save = (item: LabSpec, value: ReturnType<typeof getSaved>) => { const next = { ...saved, [item.id]: value }; setSaved(next); try { localStorage.setItem("ap-physics-labs-v2", JSON.stringify(next)); } catch { /* memory fallback */ } };
+  const complete = (item: LabSpec) => progress.completeLesson(`lab-${item.id}`, 100, item.minutes);
+  return <div className="mx-auto max-w-7xl"><div className="flex flex-wrap items-end justify-between gap-3"><div><h1 className="flex items-center gap-2 text-3xl font-extrabold tracking-tight"><FlaskConical className="size-7 text-[var(--clay-4)]" /> Virtual laboratory</h1><p className="mt-1 max-w-2xl text-sm text-muted-foreground">Predict → experiment → measure → graph → explain. Every control is connected to a local physics model and every trial records realistic measurement noise.</p></div><div className="clay-sm px-3 py-2 text-xs font-bold">{Object.keys(saved).length} labs started · {p.completedLessons && Object.keys(p.completedLessons).filter((key) => key.startsWith("lab-")).length} completed</div></div>{mode === "library" ? <><div className="clay mt-5 p-4"><div className="grid gap-3 sm:grid-cols-2"><label className="text-xs font-bold"><span className="text-muted-foreground">Course</span><select value={course} onChange={(e) => { setCourse(e.target.value as CourseId | "all"); setTopic("all"); }} className="clay-inset mt-1 w-full px-3 py-2.5 text-sm outline-none"><option value="all">All AP Physics courses</option>{COURSES.map((item) => <option key={item.id} value={item.id}>{item.short}</option>)}</select></label><label className="text-xs font-bold"><span className="text-muted-foreground">Topic</span><select value={topic} onChange={(e) => setTopic(e.target.value)} className="clay-inset mt-1 w-full px-3 py-2.5 text-sm outline-none"><option value="all">All topics</option>{topics.map((item) => <option key={item}>{item}</option>)}</select></label></div></div><div className="mt-4 grid gap-3 md:grid-cols-2">{filtered.map((item) => { const started = Boolean(saved[item.id]); const completeState = (p.completedLessons[`lab-${item.id}`] ?? 0) >= 100; return <div key={item.id} className="clay p-5"><div className="flex items-start justify-between gap-3"><div><div className="flex flex-wrap items-center gap-2"><span className="clay-sm px-2 py-1 text-[10px] font-extrabold" style={{ color: COURSE_MAP[item.course].color }}>{COURSE_MAP[item.course].short}</span><span className="text-[10px] font-bold text-muted-foreground">Unit {item.unit} · Level {item.difficulty}</span></div><h2 className="mt-2 text-lg font-extrabold">{item.title}</h2><p className="mt-1 text-sm text-muted-foreground">{item.question}</p></div><span className={cn("rounded-full px-2 py-1 text-[10px] font-bold", completeState ? "bg-emerald-500/15 text-emerald-600" : started ? "bg-amber-500/15 text-amber-600" : "bg-muted text-muted-foreground")}>{completeState ? "Mastered" : started ? "In progress" : `${item.minutes} min`}</span></div><div className="mt-3 flex flex-wrap gap-1.5">{item.skills.map((skill) => <span key={skill} className="clay-sm px-2 py-1 text-[10px] font-semibold">{skill}</span>)}</div><Button onClick={() => { setOpenId(item.id); setMode("workspace"); }} className="clay-btn mt-4 border-0 text-xs font-bold"><Play className="mr-1 size-3.5" /> Open experiment</Button></div>; })}</div></> : lab ? <><button onClick={() => setMode("library")} className="mt-5 text-sm font-bold text-[var(--clay-primary-deep)]">← Back to lab library</button><div className="mt-3"><div className="clay p-5"><div className="flex flex-wrap items-start justify-between gap-3"><div><span className="text-xs font-extrabold uppercase tracking-wide text-muted-foreground">{COURSE_MAP[lab.course].short} · Unit {lab.unit} · {lab.topic}</span><h2 className="mt-1 text-2xl font-extrabold">{lab.title}</h2><p className="mt-1 text-sm text-muted-foreground">{lab.question}</p></div><Button variant="ghost" onClick={() => setMode("library")} className="text-xs font-bold">Close</Button></div><LabWorkspace lab={lab} saved={getSaved(lab)} onSave={(value) => save(lab, value)} onComplete={complete} /></div></div></> : null}</div>;
 }
