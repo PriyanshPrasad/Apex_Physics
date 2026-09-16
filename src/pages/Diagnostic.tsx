@@ -10,6 +10,7 @@ import { QDiagram } from "@/components/questions/Diagrams";
 import { StimulusVisuals } from "@/components/questions/StimulusVisuals";
 import { stimRender } from "@/data/qgen/core";
 import type { DiagnosticQuestion } from "@/data/diagnostic";
+import { PhysicsReferenceSheet } from "@/components/PhysicsReferenceSheet";
 
 const DOMAIN_NAMES: Record<string, string> = {
   "f-algebra": "Algebra",
@@ -175,6 +176,7 @@ export default function Diagnostic() {
           <div className="h-2 rounded-full bg-[var(--clay-4)] transition-all" style={{ width: `${(idx / DIAGNOSTIC_QUESTIONS.length) * 100}%` }} />
         </div>
 
+        <PhysicsReferenceSheet compact />
         <p className="mt-6 text-lg font-bold leading-7">{q.prompt}</p>
         <DiagnosticVisual question={q} />
         <div className="mt-4 space-y-2">
