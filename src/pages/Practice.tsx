@@ -12,6 +12,7 @@ import { StimulusVisuals } from "@/components/questions/StimulusVisuals";
 import { M } from "@/components/math/Math";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
+import { COURSE_FRQS, topicVariants, type FRQTask } from "@/data/frqBank";
 
 // ------------------------------------------------------------
 // Practice modes (spec §23)
@@ -264,7 +265,7 @@ const FRQ_RESOURCES: Record<CourseId, { label: string; url: string }> = {
   cem: { label: "AP Physics C: E&M official past FRQs & scoring", url: "https://apcentral.collegeboard.org/courses/ap-physics-c-electricity-and-magnetism/exam/past-exam-questions" },
 };
 
-const FREE_RESPONSE_TASKS = [
+const LEGACY_FREE_RESPONSE_TASKS = [
   {
     id: "fr-energy", course: "p1" as CourseId, skill: "Qualitative/Quantitative Translation",
     prompt: "A block slides down a frictionless ramp from height h, then along a rough horizontal surface (coefficient μₖ) and stops after distance d.",
@@ -331,7 +332,9 @@ const FREE_RESPONSE_TASKS = [
   },
 ];
 
-function FreeResponseCard({ task }: { task: (typeof FREE_RESPONSE_TASKS)[number] }) {
+const FREE_RESPONSE_TASKS: FRQTask[] = [...COURSE_FRQS, ...UNITS.flatMap((unit) => topicVariants(unit))];
+
+function FreeResponseCard({ task }: { task: FRQTask }) {
   const [answers, setAnswers] = useState(["", "", ""]);
   const [checked, setChecked] = useState(false);
   const done = checked && answers.every((a) => a.trim().length > 10);
@@ -387,6 +390,9 @@ export default function Practice() {
   const [frqCourse, setFrqCourse] = useState<CourseId>("p1");
   const [frqYear, setFrqYear] = useState("2025");
   const [frqMode, setFrqMode] = useState<"original" | "official">("original");
+  const [frqScope, setFrqScope] = useState<"course" | "topic">("course");
+  const [frqTopic, setFrqTopic] = useState("all");
+  const frqTopics = useMemo(() => Array.from(new Set(FREE_RESPONSE_TASKS.filter((task) => task.course === frqCourse && !task.id.startsWith("p1-course") && !task.id.startsWith("p2-course") && !task.id.startsWith("cm-course") && !task.id.startsWith("cem-course")).map((task) => task.topic))).sort(), [frqCourse]);
   const stats = bankStats();
   const [tab, setTab] = useState<"session" | "free" | "frq">("session");
 
@@ -545,13 +551,14 @@ export default function Practice() {
               <div><p className="text-xs font-extrabold uppercase tracking-wide text-muted-foreground">Free response</p><h2 className="mt-1 text-2xl font-extrabold">Practice the AP response, not just the answer</h2><p className="mt-1 max-w-2xl text-sm leading-6 text-muted-foreground">Use original local prompts for guided practice, or open the official College Board archive for a selected course and year. Official copyrighted text stays on College Board.</p></div>
               <div className="clay-sm flex overflow-hidden p-1"><button onClick={() => setFrqMode("original")} className={cn("px-3 py-1.5 text-xs font-bold", frqMode === "original" && "bg-[var(--clay-primary-tint)] text-[var(--clay-primary-deep)]")}>Original practice</button><button onClick={() => setFrqMode("official")} className={cn("px-3 py-1.5 text-xs font-bold", frqMode === "official" && "bg-[var(--clay-primary-tint)] text-[var(--clay-primary-deep)]")}>Official resources</button></div>
             </div>
-            <div className="mt-5 grid gap-3 sm:grid-cols-3">
+            <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
               <label className="text-xs font-bold"><span className="text-muted-foreground">Course</span><select value={frqCourse} onChange={(e) => setFrqCourse(e.target.value as CourseId)} className="clay-inset mt-1 w-full px-3 py-2.5 text-sm font-semibold outline-none">{Object.values(COURSE_MAP).map((c) => <option key={c.id} value={c.id}>{c.short}</option>)}</select></label>
               <label className="text-xs font-bold"><span className="text-muted-foreground">Year</span><select value={frqYear} onChange={(e) => setFrqYear(e.target.value)} className="clay-inset mt-1 w-full px-3 py-2.5 text-sm font-semibold outline-none">{["2025", "2024", "2023", "2022", "2021"].map((year) => <option key={year}>{year}</option>)}</select></label>
+              <label className="text-xs font-bold"><span className="text-muted-foreground">Original set</span><select value={frqScope} onChange={(e) => { setFrqScope(e.target.value as "course" | "topic"); setFrqTopic("all"); }} className="clay-inset mt-1 w-full px-3 py-2.5 text-sm font-semibold outline-none"><option value="course">Course-level (4 FRQs)</option><option value="topic">Topic sets (4 each)</option></select></label>
               <div className="flex items-end"><a href={FRQ_RESOURCES[frqCourse].url} target="_blank" rel="noreferrer" className="clay-btn clay-press inline-flex w-full items-center justify-center px-4 py-2.5 text-xs font-bold">Open official {frqYear} archive <ArrowRight className="ml-1 size-3.5" /></a></div>
             </div>
           </div>
-          {frqMode === "official" ? <div className="clay-tint p-5"><p className="text-sm font-bold">{FRQ_RESOURCES[frqCourse].label}</p><p className="mt-1 text-sm leading-6 text-muted-foreground">The official archive provides the selected year’s released questions, scoring guidelines, sample responses, and scoring information.</p><a href={FRQ_RESOURCES[frqCourse].url} target="_blank" rel="noreferrer" className="mt-3 inline-flex items-center gap-1 text-sm font-bold text-[var(--clay-primary-deep)]">Open College Board resources <ArrowRight className="size-4" /></a></div> : FREE_RESPONSE_TASKS.filter((task) => task.course === frqCourse).map((t) => <FreeResponseCard key={t.id} task={t} />)}
+          {frqMode === "official" ? <div className="clay-tint p-5"><p className="text-sm font-bold">{FRQ_RESOURCES[frqCourse].label}</p><p className="mt-1 text-sm leading-6 text-muted-foreground">The official archive provides the selected year’s released questions, scoring guidelines, sample responses, and scoring information.</p><a href={FRQ_RESOURCES[frqCourse].url} target="_blank" rel="noreferrer" className="mt-3 inline-flex items-center gap-1 text-sm font-bold text-[var(--clay-primary-deep)]">Open College Board resources <ArrowRight className="size-4" /></a></div> : <>{frqScope === "topic" && <label className="clay-sm block p-3 text-xs font-bold"><span className="text-muted-foreground">Topic set · four original FRQs</span><select value={frqTopic} onChange={(e) => setFrqTopic(e.target.value)} className="clay-inset mt-1 w-full px-3 py-2.5 text-sm font-semibold outline-none"><option value="all">All topics ({frqTopics.length} sets)</option>{frqTopics.map((topic) => <option key={topic}>{topic}</option>)}</select></label>}{FREE_RESPONSE_TASKS.filter((task) => task.course === frqCourse && (frqScope === "course" ? task.id.startsWith(`${frqCourse}-course`) : task.id.startsWith("topic-") && (frqTopic === "all" || task.topic === frqTopic))).map((t) => <FreeResponseCard key={t.id} task={t} />)}</>}
         </div>
       ) : tab === "free" ? (
         <>
