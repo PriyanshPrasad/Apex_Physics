@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useCanvasLoop, SimFrame, SimRow, Slider, Toggle, arrow, grid, ball } from "./framework";
 import { SimShell } from "./SimShell";
 
@@ -389,12 +389,14 @@ export function RCSim() {
   const startRef = useRef(charging);
   const paramsRef = useRef({ V0, R, C });
   // changing components mid-flight changes τ going forward — keep the trace honest
-  if (paramsRef.current.V0 !== V0 || paramsRef.current.R !== R || paramsRef.current.C !== C) {
-    paramsRef.current = { V0, R, C };
-    traceRef.current = [];
-    tRef.current = 0;
-    startRef.current = charging;
-  }
+  useEffect(() => {
+    if (paramsRef.current.V0 !== V0 || paramsRef.current.R !== R || paramsRef.current.C !== C) {
+      paramsRef.current = { V0, R, C };
+      traceRef.current = [];
+      tRef.current = 0;
+      startRef.current = charging;
+    }
+  }, [V0, R, C, charging]);
   const clock = useClock();
   const reset = () => { tRef.current = 0; traceRef.current = []; startRef.current = charging; setTick((n) => n + 1); };
 
