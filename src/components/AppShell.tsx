@@ -10,6 +10,7 @@ import { searchCurriculum, COURSES } from "@/data/curriculum";
 import { useProgress } from "@/lib/progress";
 import { M } from "@/components/math/Math";
 import { useAuth } from "@/hooks/use-auth";
+import logo from "@/assets/logo.svg";
 
 const NAV = [
   { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -125,7 +126,7 @@ export default function AppShell() {
       {/* Sidebar */}
       <aside className="app-sidebar sticky top-0 hidden h-screen w-60 shrink-0 flex-col gap-1 overflow-y-auto border-r border-sidebar-border bg-sidebar p-4 md:flex">
         <Link to="/dashboard" className="mb-4 flex items-center gap-2 px-2 py-1">
-          <div className="clay-sm flex h-10 w-10 items-center justify-center bg-[var(--clay-4)] text-lg text-white">⚛</div>
+          <div className="clay-sm h-10 w-10 overflow-hidden"><img src={logo} alt="Apex Physics quantum brain logo" className="h-full w-full object-cover" /></div>
           <div>
             <p className="text-sm font-bold leading-tight">Apex Physics</p>
             <p className="text-xs text-muted-foreground">Interactive learning</p>
@@ -159,7 +160,7 @@ export default function AppShell() {
       {/* Main column */}
       <div className="min-w-0 flex-1">
         <header className="app-topbar sticky top-0 z-20 flex items-center gap-3 bg-background/80 px-4 py-3 backdrop-blur md:px-8">
-          <Link to="/dashboard" className="clay-sm flex h-9 w-9 items-center justify-center bg-[var(--clay-4)] text-white md:hidden">⚛</Link>
+          <Link to="/dashboard" className="clay-sm h-9 w-9 overflow-hidden md:hidden"><img src={logo} alt="Apex Physics quantum brain logo" className="h-full w-full object-cover" /></Link>
           <button
             onClick={() => setSearchOpen(true)}
             className="clay-sm clay-press flex flex-1 items-center gap-2 px-4 py-2 text-sm text-muted-foreground"
