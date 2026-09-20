@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Atom, Bolt, CircleDot, Gauge, Orbit, Waves } from "lucide-react";
 import { SIMS } from "@/sims/registry";
+import { SimFallback } from "@/sims/framework";
 
 const TOPICS = [
   ["Kinematics", "projectile", Orbit, "Projectile motion"],
@@ -26,7 +27,15 @@ export function EmbeddedPhysicsShowcase() {
     </div>
     <div className="embedded-sim-card">
       <div className="embedded-sim-heading"><span><Icon className="mr-2 inline size-4" />{topic}</span><small>{description} · production simulation</small></div>
-      <div className="embedded-sim-body">{Sim ? <Sim /> : <p className="p-6 text-sm text-muted-foreground">Simulation unavailable.</p>}</div>
+      <div className="embedded-sim-body">
+        {Sim ? (
+          <SimFallback name={`homepage ${topic}`}>
+            <Sim key={simKey} />
+          </SimFallback>
+        ) : (
+          <p className="p-6 text-sm text-muted-foreground">Simulation unavailable.</p>
+        )}
+      </div>
     </div>
   </div>;
 }
