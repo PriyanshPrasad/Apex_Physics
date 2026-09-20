@@ -2,12 +2,12 @@ import { useMemo, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router";
 import {
   ArrowLeft, ArrowRight, Check, ChevronRight, Lightbulb, HelpCircle,
-  Wand2, Eye, PenTool, Sigma, FlaskConical, Compass, Hammer, Target,
+  Eye, PenTool, Sigma, Compass, Hammer, Target,
   Brain, Shuffle, Award, AlertTriangle, Link2,
 } from "lucide-react";
 import { CONCEPT_MAP, COURSE_MAP, COURSES, UNITS, type Concept } from "@/data/curriculum";
-import { generateProblem, type GenProblem } from "@/data/problems";
-import { useProgress, weakestPrereqs, masteryOf } from "@/lib/progress";
+import { generateQuestionBank, type GenProblem } from "@/data/problems";
+import { progress, useProgress, weakestPrereqs, masteryOf } from "@/lib/progress";
 import { M, Eq } from "@/components/math/Math";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
@@ -106,11 +106,12 @@ function PrereqPanel({ concept }: { concept: Concept }) {
 
 // ---------- Problem player ----------
 function ProblemPlayer({
-  problem, conceptId, onNext, allowHints = true, label,
+  problem, conceptId, onNext, onNewQuestion, allowHints = true, label,
 }: {
   problem: GenProblem;
   conceptId: string;
   onNext: () => void;
+  onNewQuestion?: () => void;
   allowHints?: boolean;
   label: string;
 }) {
@@ -122,7 +123,14 @@ function ProblemPlayer({
   const check = () => {
     if (selected === null) return;
     setChecked(true);
-    useProgressRecord(conceptId, selected === problem.correct, hintsShown, problem.category);
+    const correct = selected === problem.correct;
+    const quality = correct ? (hintsShown === 0 ? 1 : 0.5) : 0;
+    progress.recordAnswer(conceptId, correct, quality, correct ? undefined : (problem.category as never), {
+      difficulty: problem.difficulty,
+      source: "lesson",
+      id: problem.id,
+      skill: `${conceptId}::${problem.category ?? "conceptual"}`,
+    });
   };
 
   return (
@@ -185,19 +193,19 @@ function ProblemPlayer({
               The answer is <strong>{"ABCD"[problem.correct]}</strong>: {problem.choices[problem.correct]}. {hintsShown === 0 && "Try the hints next time before answering — mastery grows faster when you reason it out."}
             </p>
           )}
-          <button onClick={onNext} className="mt-3 inline-flex items-center gap-1 font-bold text-[var(--clay-primary-deep)]">
-            Next <ArrowRight className="size-4" />
-          </button>
+          <div className="mt-3 flex flex-wrap gap-4">
+            {onNewQuestion && (
+              <button onClick={onNewQuestion} className="inline-flex items-center gap-1 font-bold text-[var(--clay-primary-deep)]">
+                <Shuffle className="size-4" /> Try another question
+              </button>
+            )}
+            <button onClick={onNext} className="inline-flex items-center gap-1 font-bold text-[var(--clay-primary-deep)]">
+              Next <ArrowRight className="size-4" />
+            </button>
+          </div>
         </div>
       )}
     </div>
-  );
-}
-
-function useProgressRecord(conceptId: string, correct: boolean, hints: number, category?: string) {
-  const quality = correct ? (hints === 0 ? 1 : 0.5) : 0;
-  import("@/lib/progress").then(({ progress }) =>
-    progress.recordAnswer(conceptId, correct, quality, correct ? undefined : (category as never)),
   );
 }
 
@@ -292,11 +300,30 @@ export default function Lesson() {
   const navigate = useNavigate();
   const concept = CONCEPT_MAP[conceptId ?? ""];
   const [step, setStep] = useState(0);
+  const [questionSeed, setQuestionSeed] = useState(0);
+  const lessonId = concept?.id;
 
-  const guided = useMemo(() => (concept ? generateProblem(concept.id, "easy") : null), [concept?.id]);
-  const independent = useMemo(() => (concept ? generateProblem(concept.id, "hard") : null), [concept?.id]);
-  const transfer = useMemo(() => (concept ? generateProblem(concept.id, "ap") : null), [concept?.id]);
-  const cquestion = useMemo(() => (concept ? CONCEPT_QUESTIONS[concept.id] ?? null : null), [concept?.id]);
+  // Each lesson attempt creates three independent 100-question banks. The
+  // player samples from them, so revisiting a lesson is a genuinely new set
+  // rather than the same three hard-coded prompts.
+  const guidedBank = useMemo(() => {
+    void questionSeed;
+    return lessonId ? generateQuestionBank(lessonId, "easy", 100) : [];
+  }, [lessonId, questionSeed]);
+  const independentBank = useMemo(() => {
+    void questionSeed;
+    return lessonId ? generateQuestionBank(lessonId, "hard", 100) : [];
+  }, [lessonId, questionSeed]);
+  const transferBank = useMemo(() => {
+    void questionSeed;
+    return lessonId ? generateQuestionBank(lessonId, "ap", 100) : [];
+  }, [lessonId, questionSeed]);
+  // The banks are randomized when the seed changes; selecting by seed keeps
+  // render pure while still producing a different question after each retry.
+  const guided = guidedBank.length ? guidedBank[questionSeed % guidedBank.length] : null;
+  const independent = independentBank.length ? independentBank[questionSeed % independentBank.length] : null;
+  const transfer = transferBank.length ? transferBank[questionSeed % transferBank.length] : null;
+  const cquestion = useMemo(() => (lessonId ? CONCEPT_QUESTIONS[lessonId] ?? null : null), [lessonId]);
 
   if (!concept || concept.courseId !== courseId) {
     return (
@@ -462,11 +489,11 @@ export default function Lesson() {
             )}
 
             {raw === 7 && guided && (
-              <ProblemPlayer problem={guided} conceptId={concept.id} label="Guided problem — hints encouraged" onNext={() => goToRaw(8)} />
+              <ProblemPlayer key={guided.id} problem={guided} conceptId={concept.id} label="Guided problem — hints encouraged" onNewQuestion={() => setQuestionSeed((s) => s + 1)} onNext={() => goToRaw(8)} />
             )}
 
             {raw === 8 && independent && (
-              <ProblemPlayer problem={independent} conceptId={concept.id} label="Independent problem — no hints" allowHints={false} onNext={() => goToRaw(9)} />
+              <ProblemPlayer key={independent.id} problem={independent} conceptId={concept.id} label="Independent problem — no hints" allowHints={false} onNewQuestion={() => setQuestionSeed((s) => s + 1)} onNext={() => goToRaw(9)} />
             )}
 
             {raw === 9 && (
@@ -491,7 +518,7 @@ export default function Lesson() {
             )}
 
             {raw === 10 && transfer && (
-              <ProblemPlayer problem={transfer} conceptId={concept.id} label="Transfer problem — same physics, new scene" onNext={() => goToRaw(11)} />
+              <ProblemPlayer key={transfer.id} problem={transfer} conceptId={concept.id} label="Transfer problem — same physics, new scene" onNewQuestion={() => setQuestionSeed((s) => s + 1)} onNext={() => goToRaw(11)} />
             )}
 
             {raw === 11 && (

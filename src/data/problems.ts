@@ -619,6 +619,70 @@ export function generateProblem(conceptId: string, difficulty: Difficulty = "med
   };
 }
 
+const LESSON_QUESTION_FRAMES = [
+  "A student is checking a model in the laboratory.",
+  "During an AP-style investigation, a student observes this situation.",
+  "An engineer applies this idea while testing a prototype.",
+  "A measurement is made under the conditions described below.",
+  "A class compares two physical systems using the following setup.",
+  "A scientist wants to predict the outcome of this experiment.",
+  "A student translates the physical situation into an equation.",
+  "In a new example with the same governing principle,",
+];
+
+function shuffledProblem(problem: GenProblem, variant: number): GenProblem {
+  const indexed = problem.choices.map((choice, index) => ({ choice, index }));
+  indexed.sort(() => Math.random() - 0.5);
+  const correct = indexed.findIndex(({ index }) => index === problem.correct);
+  const shouldFrame = variant % 3 === 0;
+  return {
+    ...problem,
+    id: `${problem.id}-v${variant}`,
+    prompt: shouldFrame
+      ? `${LESSON_QUESTION_FRAMES[variant % LESSON_QUESTION_FRAMES.length]} ${problem.prompt}`
+      : problem.prompt,
+    choices: indexed.map(({ choice }) => choice),
+    correct,
+  };
+}
+
+/**
+ * Build a sizeable, local question bank for a lesson without storing thousands
+ * of near-identical objects in the bundle. Each call creates fresh numerical
+ * values, distractor order, and occasional laboratory framing. The result is
+ * deliberately generated on demand so a new lesson attempt gets a new set.
+ */
+export function generateQuestionBank(
+  conceptId: string,
+  difficulty: Difficulty = "medium",
+  count = 100,
+): GenProblem[] {
+  const bank: GenProblem[] = [];
+  const seen = new Set<string>();
+  let attempts = 0;
+  const target = Math.max(1, Math.min(100, count));
+
+  while (bank.length < target && attempts < target * 12) {
+    const base = generateProblem(conceptId, difficulty);
+    const candidate = shuffledProblem(base, attempts);
+    const key = `${candidate.prompt}|${candidate.choices.join("|")}|${candidate.correct}`;
+    if (!seen.has(key)) {
+      seen.add(key);
+      bank.push(candidate);
+    }
+    attempts += 1;
+  }
+
+  // A fallback concept may have fewer unique procedural variants. Repeated
+  // entries still receive fresh ids and randomized choice ordering, so the
+  // learner never sees a fixed answer position.
+  while (bank.length < target) {
+    const candidate = shuffledProblem(generateProblem(conceptId, difficulty), attempts++);
+    bank.push(candidate);
+  }
+  return bank;
+}
+
 export function difficultyColor(d: Difficulty): string {
   switch (d) {
     case "easy": return "#6fd6c8";
