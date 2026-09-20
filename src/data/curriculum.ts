@@ -1,5 +1,5 @@
 // ============================================================
-// AP Physics Mastery — Curriculum data architecture
+// Apex Physics — Curriculum data architecture
 // Aligned to the current College Board AP Physics frameworks
 // (Physics 1, Physics 2, C: Mechanics, C: E&M).
 // Curriculum version is bumped when units change; the app reads

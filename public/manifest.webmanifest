@@ -1,7 +1,7 @@
 {
-  "name": "freebuff.com application",
-  "short_name": "freebuff.com",
-  "description": "freebuff.com application",
+  "name": "Apex Physics",
+  "short_name": "Apex Physics",
+  "description": "Interactive AP Physics learning with visual lessons, realistic virtual labs, simulations, practice, diagnostics, and free-response questions.",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#ffffff",

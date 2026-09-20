@@ -127,8 +127,8 @@ export default function AppShell() {
         <Link to="/dashboard" className="mb-4 flex items-center gap-2 px-2 py-1">
           <div className="clay-sm flex h-10 w-10 items-center justify-center bg-[var(--clay-4)] text-lg text-white">⚛</div>
           <div>
-            <p className="text-sm font-bold leading-tight">AP Physics</p>
-            <p className="text-xs text-muted-foreground">Mastery</p>
+            <p className="text-sm font-bold leading-tight">Apex Physics</p>
+            <p className="text-xs text-muted-foreground">Interactive learning</p>
           </div>
         </Link>
         {NAV.map(({ to, label, icon: Icon }) => (
