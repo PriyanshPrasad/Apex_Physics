@@ -374,7 +374,14 @@ export function FBDSim() {
   const [mass, setMass] = useState(10);
   const [withFriction, setWithFriction] = useState(true);
   const [mu, setMu] = useState(0.3);
+  const [running, setRunning] = useState(true);
+  const [tick, setTick] = useState(0);
+  const distanceRef = useRef(0);
+  const velocityRef = useRef(0);
+  const clock = useClock();
+  const reset = () => { distanceRef.current = 0; velocityRef.current = 0; setTick((n) => n + 1); };
   const ref = useCanvasLoop(({ ctx, w, h, fg, muted }) => {
+    const { dt } = clock(performance.now(), running);
     grid(ctx, w, h);
     const cx = w * 0.5, cy = h * 0.55;
     const rad = (theta * Math.PI) / 180;
@@ -383,7 +390,16 @@ export function FBDSim() {
     ctx.moveTo(cx - 150, cy + 150 * Math.tan(rad));
     ctx.lineTo(cx + 150, cy - 150 * Math.tan(rad));
     ctx.stroke();
-    const bx = cx, by = cy;
+    const normal = mass * 9.8 * Math.cos(rad);
+    const downhillForce = mass * 9.8 * Math.sin(rad);
+    const frictionLimit = withFriction ? mu * normal : 0;
+    const acceleration = Math.max(0, (downhillForce - frictionLimit) / mass);
+    if (dt > 0 && acceleration > 0) {
+      velocityRef.current = Math.min(4, velocityRef.current + acceleration * dt);
+      distanceRef.current = Math.min(2.2, distanceRef.current + velocityRef.current * dt);
+    }
+    const bx = cx - distanceRef.current * 70 * Math.cos(rad);
+    const by = cy + distanceRef.current * 70 * Math.sin(rad);
     const blockS = 26;
     ctx.save();
     ctx.translate(bx, by);
@@ -394,8 +410,7 @@ export function FBDSim() {
     const g = 9.8 * 4; // px per m/s² scale
     const Wv = mass * g;
     arrow(ctx, bx, by, bx, by + Wv * 0.5, "#ff8fb1", 3, 9);
-    const nx = Math.sin(rad) * Wv * Math.cos(rad) * 0.5 + Math.sin(rad) * 0; // scaled below
-    const FN = mass * 9.8 * Math.cos(rad);
+    const FN = normal;
     const nLen = FN * 0.5 * 4 / 9.8; // px
     arrow(ctx, bx, by, bx + Math.sin(rad) * nLen, by - Math.cos(rad) * nLen, "#6fd6c8", 3, 9);
     if (withFriction) {
@@ -406,34 +421,32 @@ export function FBDSim() {
       arrow(ctx, bx, by, bx - Math.cos(rad) * fLen, by - Math.sin(rad) * fLen, "#ffc46b", 3, 9);
     }
     ctx.fillStyle = fg; ctx.font = "12px system-ui";
-    const fMax = mu * FN;
+    const fMax = withFriction ? mu * FN : 0;
     const gAlong = 9.8 * Math.sin(rad); // m/s² along the ramp
     const slides = gAlong * mass > fMax + 1e-9;
-    const aSlide = Math.max(0, gAlong - mu * 9.8 * Math.cos(rad));
+    const aSlide = Math.max(0, gAlong - (withFriction ? mu * 9.8 * Math.cos(rad) : 0));
     ctx.fillText(`F_N = mg·cosθ = ${FN.toFixed(0)} N   F_g = ${(mass * 9.8).toFixed(0)} N`, 12, 20);
     ctx.fillText(`f_max = μF_N = ${fMax.toFixed(0)} N  vs  mg·sinθ = ${(gAlong * mass).toFixed(0)} N`, 12, 38);
     ctx.fillText(
       slides
-        ? `Slides! a = ${aSlide.toFixed(1)} m/s² down-ramp`
+        ? `Slides! a = ${aSlide.toFixed(1)} m/s² down-ramp · d = ${distanceRef.current.toFixed(2)} m · v = ${velocityRef.current.toFixed(2)} m/s`
         : `Static: friction holds it (needs ${(gAlong * mass).toFixed(0)} N ≤ ${fMax.toFixed(0)} N)`,
       12, 56,
     );
-    void nx;
-  });
+  }, { running, resetKey: tick });
   return (
     <div>
       <SimFrame height={300}><canvas ref={ref} className="h-full w-full" /></SimFrame>
       <SimRow>
-        <Slider label="Ramp angle" value={theta} min={0} max={45} onChange={setTheta} format={(v) => `${v}°`} />
+        <Slider label="Ramp angle" value={theta} min={0} max={45} onChange={(v) => { reset(); setTheta(v); }} format={(v) => `${v}°`} />
         <Slider label="Mass" value={mass} min={1} max={50} onChange={setMass} format={(v) => `${v} kg`} />
         <Slider label="μ" value={mu} min={0} max={1} step={0.05} onChange={setMu} />
         <Toggle label="Friction" on={withFriction} onChange={setWithFriction} />
       </SimRow>
       <Panel
-        showControls={false}
-        running
-        onPlayPause={() => {}}
-        onReset={() => { setTheta(0); setMass(10); setMu(0.3); setWithFriction(true); }}
+        running={running}
+        onPlayPause={() => setRunning((r) => !r)}
+        onReset={() => { reset(); setRunning(true); setTheta(0); setMass(10); setMu(0.3); setWithFriction(true); }}
         physics={{
           what: "A block on an adjustable incline. All forces are drawn to scale from the actual equations — tilt until the downhill pull beats friction's ceiling and the verdict flips.",
           equations: [
@@ -498,8 +511,11 @@ export function CollisionSim() {
         const M = m1 + m2;
         if (elastic) {
           const u1 = p.v1x / 40, u2 = p.v2x / 40; // m/s
-          p.v1x = ((m1 - m2) * u1 + 2 * m2 * u2) / M * 40;
-          p.v2x = ((m2 - m1) * u2 + 2 * m1 * u1) / M * 40;
+          // Store velocities in normalized-position units; convert the
+          // physical post-collision velocities back by the same scale used
+          // at launch (1 normalized unit = 40 m/s).
+          p.v1x = (((m1 - m2) * u1 + 2 * m2 * u2) / M) / 40;
+          p.v2x = (((m2 - m1) * u2 + 2 * m1 * u1) / M) / 40;
         } else {
           const vf = ((m1 * p.v1x + m2 * p.v2x) / M);
           p.v1x = vf; p.v2x = vf;
@@ -724,7 +740,10 @@ export function RotationSim() {
       histRef.current.push({ t, w: omegaRef.current });
       if (histRef.current.length > 700) histRef.current.shift();
     }
-    const cx = w * 0.38, cy = h * 0.55, R = Math.min(w, h) * 0.26;
+    const cx = w * 0.38, cy = h * 0.55;
+    // Radius is both a physical parameter in I = c·mR² and the rendered body size.
+    // The reference radius is 0.80 m at the midpoint of the control.
+    const R = Math.min(w, h) * 0.26 * (radius / 80);
     ctx.strokeStyle = muted; ctx.lineWidth = 2;
     ctx.save(); ctx.translate(cx, cy); ctx.rotate(thetaRef.current);
     if (Ikind === "hoop") {
@@ -750,6 +769,7 @@ export function RotationSim() {
     arrow(ctx, mx, my, mx - Math.sin(thetaRef.current) * omegaRef.current * 12, my + Math.cos(thetaRef.current) * omegaRef.current * 12, "#6fd6c8", 2);
     ctx.fillStyle = fg; ctx.font = "12px system-ui";
     ctx.fillText(`τ = ${torque.toFixed(1)} N·m   I = ${I.toFixed(2)} kg·m² (${c}mR²)   α = ${alpha.toFixed(1)} rad/s²   ω = ${omegaRef.current.toFixed(1)} rad/s`, 12, 20);
+    ctx.fillText(`Radius = ${(radius / 100).toFixed(2)} m · rendered radius = ${(R / Math.min(w, h) * 100).toFixed(1)}% of canvas`, 12, 38);
     // real ω(t) graph from recorded history
     const gx = w * 0.7, gw = w * 0.26, gy = h * 0.25, gh = h * 0.45;
     ctx.strokeStyle = muted; ctx.lineWidth = 1; ctx.strokeRect(gx, gy, gw, gh);
