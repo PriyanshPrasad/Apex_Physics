@@ -1,3 +1,4 @@
+import { ConvexProvider, ConvexReactClient } from "convex/react";
 import { Toaster } from "@/components/ui/sonner";
 import { RequireAuth } from "@/components/RequireAuth";
 import React, { StrictMode, useEffect, lazy, Suspense } from "react";
@@ -13,6 +14,10 @@ import "./index.css";
     document.documentElement.classList.add("dark");
   }
 })();
+
+const convexUrl = import.meta.env.VITE_CONVEX_URL as string | undefined;
+const hasConvex = Boolean(convexUrl);
+const convexClient = hasConvex ? new ConvexReactClient(convexUrl as string) : null;
 
 // Lazy load route components for better code splitting
 const Landing = lazy(() => import("./pages/Landing.tsx"));
@@ -103,42 +108,52 @@ function RouteSyncer() {
   return null;
 }
 
+function withConvex(tree: React.ReactNode) {
+  return convexClient ? (
+    <ConvexProvider client={convexClient}>{tree}</ConvexProvider>
+  ) : (
+    tree
+  );
+}
+
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <RootErrorBoundary>
       <BrowserRouter>
           <RouteSyncer />
           <Suspense fallback={<RouteLoading />}>
-            <Routes>
-              <Route path="/" element={<Landing />} />
-              <Route path="/auth" element={<AuthPage redirectAfterAuth="/dashboard" />} />
-              <Route
-                element={
-                  <RequireAuth>
-                    <AppShell />
-                  </RequireAuth>
-                }
-              >
-                <Route path="/dashboard" element={<Dashboard />} />
-                <Route path="/learn" element={<LearnHome />} />
-                <Route path="/learn/:courseId" element={<CoursePage />} />
-                <Route path="/learn/:courseId/:conceptId" element={<Lesson />} />
-                <Route path="/courses" element={<Courses />} />
-                <Route path="/courses/:courseId" element={<CourseDetail />} />
-                <Route path="/practice" element={<Practice />} />
-                <Route path="/labs" element={<Labs />} />
-                <Route path="/sims" element={<Sims />} />
-                <Route path="/map" element={<KnowledgeMap />} />
-                <Route path="/equations" element={<Equations />} />
-                <Route path="/units" element={<Units />} />
-                <Route path="/mistakes" element={<Mistakes />} />
-                <Route path="/progress" element={<ProgressPage />} />
-                <Route path="/compare" element={<Compare />} />
-                <Route path="/diagnostic" element={<Diagnostic />} />
-                <Route path="/ap-diagnostic" element={<ApDiagnostic />} />
-              </Route>
-              <Route path="*" element={<NotFound />} />
-            </Routes>
+            {withConvex(
+              <Routes>
+                <Route path="/" element={<Landing />} />
+                <Route path="/auth" element={<AuthPage redirectAfterAuth="/dashboard" />} />
+                <Route
+                  element={
+                    <RequireAuth>
+                      <AppShell />
+                    </RequireAuth>
+                  }
+                >
+                  <Route path="/dashboard" element={<Dashboard />} />
+                  <Route path="/learn" element={<LearnHome />} />
+                  <Route path="/learn/:courseId" element={<CoursePage />} />
+                  <Route path="/learn/:courseId/:conceptId" element={<Lesson />} />
+                  <Route path="/courses" element={<Courses />} />
+                  <Route path="/courses/:courseId" element={<CourseDetail />} />
+                  <Route path="/practice" element={<Practice />} />
+                  <Route path="/labs" element={<Labs />} />
+                  <Route path="/sims" element={<Sims />} />
+                  <Route path="/map" element={<KnowledgeMap />} />
+                  <Route path="/equations" element={<Equations />} />
+                  <Route path="/units" element={<Units />} />
+                  <Route path="/mistakes" element={<Mistakes />} />
+                  <Route path="/progress" element={<ProgressPage />} />
+                  <Route path="/compare" element={<Compare />} />
+                  <Route path="/diagnostic" element={<Diagnostic />} />
+                  <Route path="/ap-diagnostic" element={<ApDiagnostic />} />
+                </Route>
+                <Route path="*" element={<NotFound />} />
+              </Routes>,
+            )}
           </Suspense>
       </BrowserRouter>
       <Toaster />
